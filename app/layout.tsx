@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Outfit, Amiri } from "next/font/google";
 import "./globals.css";
+import Navbar from "@/components/Navbar";
+import CartDrawer from "@/components/CartDrawer";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -29,7 +31,9 @@ export default function RootLayout({
       className={`${outfit.variable} ${amiri.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans bg-stone-50 text-stone-800">
+        <Navbar />
         {children}
+        <CartDrawer />
       </body>
     </html>
   );
