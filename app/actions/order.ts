@@ -8,6 +8,9 @@ export async function submitOrder(formData: FormData) {
     const phoneNumber = formData.get("phoneNumber") as string;
     const itemsRaw = formData.get("items") as string;
     const photo = formData.get("photo") as File | null;
+    const wilaya = formData.get("wilaya") as string;
+    const commune = formData.get("commune") as string;
+    const address = formData.get("address") as string;
 
     if (!fullName) {
       return { success: false, error: "Le nom complet est requis." };
@@ -49,6 +52,9 @@ export async function submitOrder(formData: FormData) {
         phone_number: phoneNumber,
         items: items,
         photo_url: photoUrl,
+        wilaya: wilaya || null,
+        commune: commune || null,
+        address: address || null,
       },
     ]);
 
@@ -64,26 +70,85 @@ export async function submitOrder(formData: FormData) {
   }
 }
 
-export async function confirmOrder(orderId: string) {
+import { createParcel } from "@/app/actions/yalidine";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+
+export async function confirmOrder(formData: FormData) {
   try {
+    let orderId = "";
+    let priceStr = "";
+    for (const [key, value] of formData.entries()) {
+      if (key === "orderId" || key.endsWith("_orderId")) orderId = value.toString();
+      if (key === "price" || key.endsWith("_price")) priceStr = value.toString();
+    }
+    
+    const price = priceStr ? parseFloat(priceStr) : 0;
+
+    // Get the order details to send to Yalidine
+    const { data: order, error: orderError } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("id", orderId)
+      .single();
+
+    if (orderError || !order) {
+      return { success: false, error: "Commande introuvable." };
+    }
+
+    let yalidineTracking = null;
+
+    // Try creating Yalidine Parcel if Wilaya is present
+    if (order.wilaya) {
+      try {
+        const parcelInfo = await createParcel({
+          orderId: order.id,
+          fullName: order.full_name,
+          phoneNumber: order.phone_number,
+          address: order.address || "Aucune adresse",
+          wilaya: order.wilaya,
+          commune: order.commune || "Aucune",
+          itemsSummary: order.items?.length > 0 ? "Articles multiples" : "Commande sur mesure",
+          price: price
+        });
+        if (parcelInfo && parcelInfo.tracking) {
+          yalidineTracking = parcelInfo.tracking;
+        }
+      } catch (err: any) {
+        console.error("Yalidine Parcel Creation Error:", err);
+        return { success: false, error: err.message || "Erreur lors de la création du colis Yalidine." };
+      }
+    }
+
     const { error } = await supabase
       .from("orders")
-      .update({ status: "CONFIRMED" })
+      .update({ 
+        status: "CONFIRMED", 
+        yalidine_tracking: yalidineTracking 
+      })
       .eq("id", orderId);
 
     if (error) {
       console.error("Confirm order error:", error);
-      return { success: false, error: "Erreur lors de la confirmation." };
+      throw new Error("Erreur lors de la confirmation.");
     }
 
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: "Une erreur inattendue s'est produite." };
+    revalidatePath("/admin");
+    redirect("/admin");
+  } catch (err: any) {
+    if (err.message === "NEXT_REDIRECT") throw err; // Allow Next.js redirects to propagate
+    console.error(err);
+    throw new Error(err.message || "Une erreur inattendue s'est produite.");
   }
 }
 
-export async function cancelOrder(orderId: string) {
+export async function cancelOrder(formData: FormData) {
   try {
+    let orderId = "";
+    for (const [key, value] of formData.entries()) {
+      if (key === "orderId" || key.endsWith("_orderId")) orderId = value.toString();
+    }
+    
     const { error } = await supabase
       .from("orders")
       .update({ status: "CANCELLED" })
@@ -91,11 +156,13 @@ export async function cancelOrder(orderId: string) {
 
     if (error) {
       console.error("Cancel order error:", error);
-      return { success: false, error: "Erreur lors de l'annulation." };
+      throw new Error("Erreur lors de l'annulation.");
     }
 
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: "Une erreur inattendue s'est produite." };
+    revalidatePath("/admin");
+    redirect("/admin");
+  } catch (err: any) {
+    if (err.message === "NEXT_REDIRECT") throw err; // Allow Next.js redirects to propagate
+    throw new Error("Une erreur inattendue s'est produite.");
   }
 }

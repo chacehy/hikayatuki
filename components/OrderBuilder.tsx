@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { submitOrder } from "@/app/actions/order";
+import { getWilayas, getCommunes } from "@/app/actions/yalidine";
 import { Upload, X, Check, Loader2 } from "lucide-react";
 
 type ItemCategory = {
@@ -50,6 +51,13 @@ export default function OrderBuilder() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
+  const [wilayas, setWilayas] = useState<{id: number, name: string}[]>([]);
+  const [communes, setCommunes] = useState<{id: number, name: string}[]>([]);
+  const [wilayaId, setWilayaId] = useState("");
+  const [wilayaName, setWilayaName] = useState("");
+  const [communeName, setCommuneName] = useState("");
+  const [address, setAddress] = useState("");
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -63,6 +71,26 @@ export default function OrderBuilder() {
         return [...prev, { category, item }];
       }
     });
+  };
+
+  useEffect(() => {
+    getWilayas().then(setWilayas);
+  }, []);
+
+  const handleWilayaChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedId = e.target.value;
+    setWilayaId(selectedId);
+    
+    const selectedWilaya = wilayas.find(w => w.id.toString() === selectedId);
+    setWilayaName(selectedWilaya ? selectedWilaya.name : "");
+    setCommuneName(""); // reset commune
+    
+    if (selectedId) {
+      const comms = await getCommunes(parseInt(selectedId));
+      setCommunes(comms);
+    } else {
+      setCommunes([]);
+    }
   };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -92,6 +120,11 @@ export default function OrderBuilder() {
       return;
     }
 
+    if (!wilayaName || !communeName || !address) {
+      setErrorMsg("Veuillez remplir toutes vos informations de livraison.");
+      return;
+    }
+
     if (selectedItems.length === 0 && !photo) {
       setErrorMsg("Veuillez sélectionner au moins un article ou envoyer une photo.");
       return;
@@ -102,6 +135,9 @@ export default function OrderBuilder() {
     const formData = new FormData();
     formData.append("fullName", fullName);
     formData.append("phoneNumber", phone);
+    formData.append("wilaya", wilayaName);
+    formData.append("commune", communeName);
+    formData.append("address", address);
     formData.append("items", JSON.stringify(selectedItems));
     if (photo) {
       formData.append("photo", photo);
@@ -118,6 +154,10 @@ export default function OrderBuilder() {
       setPhotoPreview(null);
       setFullName("");
       setPhone("");
+      setWilayaId("");
+      setWilayaName("");
+      setCommuneName("");
+      setAddress("");
     } else {
       setErrorMsg(result.error || "Une erreur est survenue.");
     }
@@ -260,8 +300,53 @@ export default function OrderBuilder() {
               className="w-full bg-[#1a1c1b] border border-stone-700 text-white px-4 py-3 focus:outline-none focus:border-[#8c7b65] transition-colors rounded-none"
             />
           </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="wilaya" className="block text-sm text-stone-300 mb-2">Wilaya</label>
+              <select 
+                id="wilaya"
+                value={wilayaId}
+                onChange={handleWilayaChange}
+                className="w-full bg-[#1a1c1b] border border-stone-700 text-white px-4 py-3 focus:outline-none focus:border-[#8c7b65] transition-colors rounded-none appearance-none"
+              >
+                <option value="">Sélectionnez...</option>
+                {wilayas.map(w => (
+                  <option key={w.id} value={w.id}>{w.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="commune" className="block text-sm text-stone-300 mb-2">Commune</label>
+              <select 
+                id="commune"
+                value={communeName}
+                onChange={(e) => setCommuneName(e.target.value)}
+                disabled={!wilayaId || communes.length === 0}
+                className="w-full bg-[#1a1c1b] border border-stone-700 text-white px-4 py-3 focus:outline-none focus:border-[#8c7b65] transition-colors rounded-none appearance-none disabled:opacity-50"
+              >
+                <option value="">Sélectionnez...</option>
+                {communes.map(c => (
+                  <option key={c.id} value={c.name}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="address" className="block text-sm text-stone-300 mb-2">Adresse Complète</label>
+            <input 
+              type="text" 
+              id="address"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="Ex: Cité 200 logements, Batiment B"
+              className="w-full bg-[#1a1c1b] border border-stone-700 text-white px-4 py-3 focus:outline-none focus:border-[#8c7b65] transition-colors rounded-none"
+            />
+          </div>
+
           <button 
-            type="submit" 
+            type="submit"  
             disabled={isSubmitting}
             className="w-full bg-[#8c7b65] hover:bg-[#6e5f4d] disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold py-4 transition-colors flex justify-center items-center gap-2 rounded-none"
           >

@@ -26,22 +26,6 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
     );
   }
 
-  async function handleConfirm() {
-    "use server";
-    await confirmOrder(id);
-    revalidatePath(`/admin/orders/${id}`);
-    revalidatePath("/admin");
-    redirect("/admin");
-  }
-
-  async function handleCancel() {
-    "use server";
-    await cancelOrder(id);
-    revalidatePath(`/admin/orders/${id}`);
-    revalidatePath("/admin");
-    redirect("/admin");
-  }
-
   return (
     <div className="min-h-screen bg-[var(--color-background-soft)] p-8">
       <div className="max-w-4xl mx-auto">
@@ -78,8 +62,23 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
 
           <div className="p-8 grid md:grid-cols-[1fr_minmax(0,300px)] gap-10">
             {/* Items */}
-            <div>
-              <h2 className="text-sm text-stone-400 uppercase tracking-widest mb-4 border-b border-stone-100 pb-2">Articles Sélectionnés</h2>
+            <div className="space-y-8">
+              <div>
+                <h2 className="text-sm text-stone-400 uppercase tracking-widest mb-4 border-b border-stone-100 pb-2">Informations de Livraison</h2>
+                <div className="bg-stone-50/50 p-4 border border-stone-100 flex flex-col gap-2">
+                  <p><span className="font-bold text-stone-600">Wilaya:</span> {order.wilaya || <span className="italic text-stone-400">Non renseignée</span>}</p>
+                  <p><span className="font-bold text-stone-600">Commune:</span> {order.commune || <span className="italic text-stone-400">Non renseignée</span>}</p>
+                  <p><span className="font-bold text-stone-600">Adresse:</span> {order.address || <span className="italic text-stone-400">Non renseignée</span>}</p>
+                  {order.yalidine_tracking && (
+                    <div className="mt-3 pt-3 border-t border-stone-200">
+                      <p><span className="font-bold text-[#8c7b65]">Tracking Yalidine:</span> <span className="font-mono bg-white px-2 py-1 border border-stone-200">{order.yalidine_tracking}</span></p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <h2 className="text-sm text-stone-400 uppercase tracking-widest mb-4 border-b border-stone-100 pb-2">Articles Sélectionnés</h2>
               {order.items && order.items.length > 0 ? (
                 <ul className="space-y-3">
                   {order.items.map((it: any, idx: number) => (
@@ -92,6 +91,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
               ) : (
                 <p className="text-stone-500 italic text-sm">Pas d'articles du catalogue sélectionnés.</p>
               )}
+            </div>
             </div>
 
             {/* Photo / Actions */}
@@ -115,15 +115,29 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
 
               {order.status !== 'CONFIRMED' && order.status !== 'CANCELLED' && (
                 <div className="flex flex-col gap-3">
-                  <form action={handleConfirm}>
+                  <form action={confirmOrder} className="bg-stone-50 p-4 border border-stone-200 shadow-sm flex flex-col gap-3">
+                    <input type="hidden" name="orderId" value={order.id} />
+                    <div>
+                      <label htmlFor="price" className="block text-xs font-bold text-stone-600 uppercase tracking-widest mb-2">Prix Final (DA)</label>
+                      <input 
+                        type="number" 
+                        id="price" 
+                        name="price" 
+                        placeholder="0"
+                        required
+                        className="w-full border border-stone-300 px-3 py-2 focus:outline-none focus:border-[#8c7b65]"
+                      />
+                      <p className="text-xs text-stone-400 mt-1">Nécessaire pour créer le colis Yalidine</p>
+                    </div>
                     <button 
                       type="submit"
-                      className="w-full bg-[#2c302e] text-white hover:bg-black font-bold py-4 transition-colors tracking-widest uppercase text-sm border-none rounded-none shadow-md"
+                      className="w-full bg-[#2c302e] text-white hover:bg-black font-bold py-3 transition-colors tracking-widest uppercase text-sm border-none rounded-none shadow-md mt-2"
                     >
-                      Marquer comme Confirmée
+                      Confirmer & Envoyer à Yalidine
                     </button>
                   </form>
-                  <form action={handleCancel}>
+                  <form action={cancelOrder}>
+                    <input type="hidden" name="orderId" value={order.id} />
                     <button 
                       type="submit"
                       className="w-full bg-stone-100 text-stone-500 hover:bg-rose-50 hover:text-rose-700 font-bold py-3 transition-colors tracking-widest uppercase text-sm border-none rounded-none"
