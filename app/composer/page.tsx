@@ -1,3 +1,4 @@
+import { getComposableSubCategories } from "@/app/actions/category";
 import OrderBuilder from "@/components/OrderBuilder";
 import { Metadata } from "next";
 
@@ -6,7 +7,22 @@ export const metadata: Metadata = {
   description: "Composez votre propre bouquet floral avec Hikayatooki.",
 };
 
-export default function ComposerPage() {
+export const dynamic = "force-dynamic";
+
+export default async function ComposerPage() {
+  const composableSubCategories = await getComposableSubCategories();
+
+  // Group by main category
+  const grouped: Record<string, { mainName: string; subs: typeof composableSubCategories }> = {};
+  for (const sub of composableSubCategories as any[]) {
+    const mainName = sub.main_category?.name || "Autre";
+    const mainId = sub.main_category?.id || "other";
+    if (!grouped[mainId]) {
+      grouped[mainId] = { mainName, subs: [] };
+    }
+    grouped[mainId].subs.push(sub);
+  }
+
   return (
     <main className="min-h-screen bg-[#f9f6f0] pt-24 pb-16">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -15,15 +31,19 @@ export default function ComposerPage() {
             FEATURE — COMPOSER
           </h2>
           <h1 className="text-4xl md:text-5xl font-bold text-[#2c302e] mb-6">
-            Composez le bouquet <span className="font-serif italic font-light">qui vous ressemble.</span>
+            Composez le bouquet{" "}
+            <span className="font-serif italic font-light">
+              qui vous ressemble.
+            </span>
           </h1>
           <div className="w-24 h-[1px] bg-[#8c7b65] mx-auto mb-6" />
           <p className="text-stone-600 max-w-2xl mx-auto text-lg">
-            Quatre étapes, calmes et guidées. Vous choisissez l'occasion, la fleur centrale, ses compagnes, puis la finition. Notre atelier valide. Vous recevez.
+            Choisissez le type de création, sélectionnez vos matières premières,
+            et laissez notre atelier réaliser votre vision.
           </p>
         </header>
 
-        <OrderBuilder />
+        <OrderBuilder groupedCategories={grouped} />
       </div>
     </main>
   );

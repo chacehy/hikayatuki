@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Package, ShoppingCart, LayoutDashboard, Settings } from "lucide-react";
+import { Package, LayoutDashboard, FolderTree, Gem } from "lucide-react";
 
 export default function AdminLayout({
   children,
@@ -19,14 +19,20 @@ export default function AdminLayout({
         <nav className="flex-1 p-4 space-y-2">
           <Link href="/admin" className="flex items-center gap-3 px-4 py-3 text-stone-300 hover:bg-[#1a1c1b] hover:text-white transition-colors rounded-none">
             <LayoutDashboard size={18} />
-            Vue d'ensemble
+            Vue d&apos;ensemble
+          </Link>
+          <Link href="/admin/categories" className="flex items-center gap-3 px-4 py-3 text-stone-300 hover:bg-[#1a1c1b] hover:text-white transition-colors rounded-none">
+            <FolderTree size={18} />
+            Catégories
           </Link>
           <Link href="/admin/products" className="flex items-center gap-3 px-4 py-3 text-stone-300 hover:bg-[#1a1c1b] hover:text-white transition-colors rounded-none">
             <Package size={18} />
             Produits
           </Link>
-
-          {/* Orders are handled on the main admin page currently, but we can add a specific link if needed */}
+          <Link href="/admin/materials" className="flex items-center gap-3 px-4 py-3 text-stone-300 hover:bg-[#1a1c1b] hover:text-white transition-colors rounded-none">
+            <Gem size={18} />
+            Matières Premières
+          </Link>
         </nav>
         <div className="p-4 border-t border-stone-700">
           <Link href="/" className="text-sm text-stone-400 hover:text-white transition-colors">

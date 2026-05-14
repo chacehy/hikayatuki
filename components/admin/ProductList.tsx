@@ -2,11 +2,15 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Product } from "@/lib/store";
 import { deleteProduct, toggleProductVisibility } from "@/app/actions/product";
-import { Eye, EyeOff, Trash2, Edit, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Trash2, Loader2 } from "lucide-react";
+import type { ProductWithCategory } from "@/lib/types";
 
-export default function ProductList({ initialProducts }: { initialProducts: Product[] }) {
+export default function ProductList({
+  initialProducts,
+}: {
+  initialProducts: ProductWithCategory[];
+}) {
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
   const handleToggle = async (id: string, currentStatus: boolean) => {
@@ -37,6 +41,7 @@ export default function ProductList({ initialProducts }: { initialProducts: Prod
         <thead>
           <tr className="bg-stone-50 border-b border-stone-200 text-sm uppercase tracking-wider text-stone-500">
             <th className="px-6 py-4 font-medium">Produit</th>
+            <th className="px-6 py-4 font-medium">Catégorie</th>
             <th className="px-6 py-4 font-medium">Prix</th>
             <th className="px-6 py-4 font-medium">Statut</th>
             <th className="px-6 py-4 font-medium text-right">Actions</th>
@@ -44,48 +49,79 @@ export default function ProductList({ initialProducts }: { initialProducts: Prod
         </thead>
         <tbody className="divide-y divide-stone-100">
           {initialProducts.map((product) => (
-            <tr key={product.id} className="hover:bg-stone-50/50 transition-colors">
+            <tr
+              key={product.id}
+              className="hover:bg-stone-50/50 transition-colors"
+            >
               <td className="px-6 py-4">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 relative bg-stone-100 border border-stone-200 flex-shrink-0">
                     {product.image_url && (
-                      <Image src={product.image_url} alt={product.name} fill className="object-cover" />
+                      <Image
+                        src={product.image_url}
+                        alt={product.name}
+                        fill
+                        className="object-cover"
+                      />
                     )}
                   </div>
                   <div>
                     <p className="font-bold text-[#2c302e]">{product.name}</p>
-                    <p className="text-xs text-stone-500 truncate max-w-[200px]">{product.description}</p>
+                    <p className="text-xs text-stone-500 truncate max-w-[200px]">
+                      {product.description}
+                    </p>
                   </div>
                 </div>
+              </td>
+              <td className="px-6 py-4">
+                {product.sub_category ? (
+                  <div>
+                    <p className="text-xs text-stone-400 capitalize">
+                      {product.sub_category.main_category?.name || "—"}
+                    </p>
+                    <p className="text-sm font-medium text-[#2c302e] capitalize">
+                      {product.sub_category.name}
+                    </p>
+                  </div>
+                ) : (
+                  <span className="text-xs text-stone-400 italic">
+                    Non classé
+                  </span>
+                )}
               </td>
               <td className="px-6 py-4 font-mono font-medium text-stone-700">
                 {product.price.toFixed(2)} DA
               </td>
               <td className="px-6 py-4">
-                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-none text-xs font-medium ${
-                  // @ts-ignore
-                  product.is_visible 
-                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
-                    : 'bg-stone-100 text-stone-800 border border-stone-200'
-                }`}>
-                  {/* @ts-ignore */}
+                <span
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-none text-xs font-medium ${
+                    product.is_visible
+                      ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                      : "bg-stone-100 text-stone-800 border border-stone-200"
+                  }`}
+                >
                   {product.is_visible ? "Visible" : "Masqué"}
                 </span>
               </td>
               <td className="px-6 py-4 text-right">
                 <div className="flex items-center justify-end gap-2">
-                  <button 
-                    onClick={() => handleToggle(product.id, (product as any).is_visible)}
+                  <button
+                    onClick={() =>
+                      handleToggle(product.id, !!product.is_visible)
+                    }
                     disabled={loadingId === product.id}
                     className="p-2 text-stone-400 hover:text-[#8c7b65] transition-colors"
-                    // @ts-ignore
                     title={product.is_visible ? "Masquer" : "Afficher"}
                   >
-                    {loadingId === product.id ? <Loader2 size={16} className="animate-spin" /> : 
-                     // @ts-ignore
-                     (product.is_visible ? <EyeOff size={16} /> : <Eye size={16} />)}
+                    {loadingId === product.id ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : product.is_visible ? (
+                      <EyeOff size={16} />
+                    ) : (
+                      <Eye size={16} />
+                    )}
                   </button>
-                  <button 
+                  <button
                     onClick={() => handleDelete(product.id)}
                     disabled={loadingId === product.id}
                     className="p-2 text-stone-400 hover:text-rose-500 transition-colors"

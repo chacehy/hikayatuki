@@ -11,6 +11,9 @@ export async function submitOrder(formData: FormData) {
     const wilaya = formData.get("wilaya") as string;
     const commune = formData.get("commune") as string;
     const address = formData.get("address") as string;
+    const orderType = (formData.get("order_type") as string) || "composer";
+    const composerSubCategoryId = formData.get("composer_sub_category_id") as string;
+    const selectedMaterialsRaw = formData.get("selected_materials") as string;
 
     if (!fullName) {
       return { success: false, error: "Le nom complet est requis." };
@@ -21,6 +24,7 @@ export async function submitOrder(formData: FormData) {
     }
 
     const items = itemsRaw ? JSON.parse(itemsRaw) : [];
+    const selectedMaterials = selectedMaterialsRaw ? JSON.parse(selectedMaterialsRaw) : [];
     let photoUrl = null;
 
     // Upload photo if it exists and is an actual file with size > 0
@@ -55,6 +59,9 @@ export async function submitOrder(formData: FormData) {
         wilaya: wilaya || null,
         commune: commune || null,
         address: address || null,
+        order_type: orderType,
+        composer_sub_category_id: composerSubCategoryId || null,
+        selected_materials: selectedMaterials,
       },
     ]);
 

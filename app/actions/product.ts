@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 export async function getProducts() {
   const { data, error } = await supabase
     .from("products")
-    .select("*")
+    .select("*, sub_category:sub_categories(*, main_category:main_categories(*))")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -16,6 +16,48 @@ export async function getProducts() {
   return data;
 }
 
+export async function getProductsBySubCategory(subCategoryId: string) {
+  const { data, error } = await supabase
+    .from("products")
+    .select("*, sub_category:sub_categories(*, main_category:main_categories(*))")
+    .eq("sub_category_id", subCategoryId)
+    .eq("is_visible", true)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching products by sub category:", error);
+    return [];
+  }
+  return data || [];
+}
+
+export async function getProductsByMainCategory(mainCategoryId: string) {
+  // First get all sub_category ids for this main category
+  const { data: subCats, error: scError } = await supabase
+    .from("sub_categories")
+    .select("id")
+    .eq("main_category_id", mainCategoryId);
+
+  if (scError || !subCats || subCats.length === 0) {
+    return [];
+  }
+
+  const subCatIds = subCats.map((sc: any) => sc.id);
+
+  const { data, error } = await supabase
+    .from("products")
+    .select("*, sub_category:sub_categories(*, main_category:main_categories(*))")
+    .in("sub_category_id", subCatIds)
+    .eq("is_visible", true)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching products by main category:", error);
+    return [];
+  }
+  return data || [];
+}
+
 export async function addProduct(formData: FormData) {
   try {
     const name = formData.get("name") as string;
@@ -23,6 +65,7 @@ export async function addProduct(formData: FormData) {
     const price = parseFloat(formData.get("price") as string);
     const isVisible = formData.get("isVisible") === "true";
     const photo = formData.get("photo") as File | null;
+    const subCategoryId = formData.get("sub_category_id") as string | null;
 
     let photoUrl = null;
 
@@ -53,6 +96,7 @@ export async function addProduct(formData: FormData) {
         price,
         is_visible: isVisible,
         image_url: photoUrl,
+        sub_category_id: subCategoryId || null,
       },
     ]);
 
@@ -62,6 +106,7 @@ export async function addProduct(formData: FormData) {
     }
 
     revalidatePath("/admin/products");
+    revalidatePath("/shop");
     revalidatePath("/");
     return { success: true };
   } catch (err) {
@@ -77,6 +122,7 @@ export async function deleteProduct(id: string) {
     return { success: false, error: "Erreur lors de la suppression." };
   }
   revalidatePath("/admin/products");
+  revalidatePath("/shop");
   revalidatePath("/");
   return { success: true };
 }
@@ -92,6 +138,7 @@ export async function toggleProductVisibility(id: string, isVisible: boolean) {
     return { success: false, error: "Erreur lors de la modification." };
   }
   revalidatePath("/admin/products");
+  revalidatePath("/shop");
   revalidatePath("/");
   return { success: true };
 }
