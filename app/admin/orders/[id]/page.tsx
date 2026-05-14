@@ -69,11 +69,6 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                   <p><span className="font-bold text-stone-600">Wilaya:</span> {order.wilaya || <span className="italic text-stone-400">Non renseignée</span>}</p>
                   <p><span className="font-bold text-stone-600">Commune:</span> {order.commune || <span className="italic text-stone-400">Non renseignée</span>}</p>
                   <p><span className="font-bold text-stone-600">Adresse:</span> {order.address || <span className="italic text-stone-400">Non renseignée</span>}</p>
-                  {order.yalidine_tracking && (
-                    <div className="mt-3 pt-3 border-t border-stone-200">
-                      <p><span className="font-bold text-[#8c7b65]">Tracking Yalidine:</span> <span className="font-mono bg-white px-2 py-1 border border-stone-200">{order.yalidine_tracking}</span></p>
-                    </div>
-                  )}
                 </div>
               </div>
 
@@ -117,23 +112,11 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                 <div className="flex flex-col gap-3">
                   <form action={confirmOrder} className="bg-stone-50 p-4 border border-stone-200 shadow-sm flex flex-col gap-3">
                     <input type="hidden" name="orderId" value={order.id} />
-                    <div>
-                      <label htmlFor="price" className="block text-xs font-bold text-stone-600 uppercase tracking-widest mb-2">Prix Final (DA)</label>
-                      <input 
-                        type="number" 
-                        id="price" 
-                        name="price" 
-                        placeholder="0"
-                        required
-                        className="w-full border border-stone-300 px-3 py-2 focus:outline-none focus:border-[#8c7b65]"
-                      />
-                      <p className="text-xs text-stone-400 mt-1">Nécessaire pour créer le colis Yalidine</p>
-                    </div>
                     <button 
                       type="submit"
                       className="w-full bg-[#2c302e] text-white hover:bg-black font-bold py-3 transition-colors tracking-widest uppercase text-sm border-none rounded-none shadow-md mt-2"
                     >
-                      Confirmer & Envoyer à Yalidine
+                      Confirmer la Commande
                     </button>
                   </form>
                   <form action={cancelOrder}>

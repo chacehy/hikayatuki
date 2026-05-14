@@ -5,7 +5,6 @@ import { useCartStore } from "@/lib/store";
 import { X, ShoppingBag, Trash2, Plus, Minus, Loader2, ArrowLeft, Check } from "lucide-react";
 import Image from "next/image";
 import { submitOrder } from "@/app/actions/order";
-import { getWilayas, getCommunes } from "@/app/actions/yalidine";
 
 export default function CartDrawer() {
   const { items, isCartOpen, toggleCart, removeItem, updateQuantity, clearCart } = useCartStore();
@@ -13,9 +12,6 @@ export default function CartDrawer() {
   const [isCheckout, setIsCheckout] = useState(false);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
-  const [wilayas, setWilayas] = useState<{id: number, name: string}[]>([]);
-  const [communes, setCommunes] = useState<{id: number, name: string}[]>([]);
-  const [wilayaId, setWilayaId] = useState("");
   const [wilayaName, setWilayaName] = useState("");
   const [communeName, setCommuneName] = useState("");
   const [address, setAddress] = useState("");
@@ -27,31 +23,13 @@ export default function CartDrawer() {
   const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   useEffect(() => {
-    if (isCartOpen) {
-      getWilayas().then(setWilayas);
-    } else {
+    if (!isCartOpen) {
       // Reset state when closed
       setIsCheckout(false);
       setSuccess(false);
       setErrorMsg("");
     }
   }, [isCartOpen]);
-
-  const handleWilayaChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selectedId = e.target.value;
-    setWilayaId(selectedId);
-    
-    const selectedWilaya = wilayas.find(w => w.id.toString() === selectedId);
-    setWilayaName(selectedWilaya ? selectedWilaya.name : "");
-    setCommuneName(""); // reset commune
-    
-    if (selectedId) {
-      const comms = await getCommunes(parseInt(selectedId));
-      setCommunes(comms);
-    } else {
-      setCommunes([]);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -174,35 +152,26 @@ export default function CartDrawer() {
 
               <div>
                 <label htmlFor="cartWilaya" className="block text-sm font-bold text-stone-700 mb-1">Wilaya</label>
-                <select 
+                <input 
+                  type="text"
                   id="cartWilaya"
-                  value={wilayaId}
-                  onChange={handleWilayaChange}
-                  className="w-full border border-stone-300 px-3 py-2 focus:outline-none focus:border-[#8c7b65] bg-white"
+                  value={wilayaName}
+                  onChange={(e) => setWilayaName(e.target.value)}
+                  className="w-full border border-stone-300 px-3 py-2 focus:outline-none focus:border-[#8c7b65]"
                   required
-                >
-                  <option value="">Sélectionnez...</option>
-                  {wilayas.map(w => (
-                    <option key={w.id} value={w.id}>{w.name}</option>
-                  ))}
-                </select>
+                />
               </div>
 
               <div>
                 <label htmlFor="cartCommune" className="block text-sm font-bold text-stone-700 mb-1">Commune</label>
-                <select 
+                <input 
+                  type="text"
                   id="cartCommune"
                   value={communeName}
                   onChange={(e) => setCommuneName(e.target.value)}
-                  disabled={!wilayaId || communes.length === 0}
-                  className="w-full border border-stone-300 px-3 py-2 focus:outline-none focus:border-[#8c7b65] bg-white disabled:bg-stone-100"
+                  className="w-full border border-stone-300 px-3 py-2 focus:outline-none focus:border-[#8c7b65]"
                   required
-                >
-                  <option value="">Sélectionnez...</option>
-                  {communes.map(c => (
-                    <option key={c.id} value={c.name}>{c.name}</option>
-                  ))}
-                </select>
+                />
               </div>
 
               <div>

@@ -25,10 +25,7 @@ export default function AdminLayout({
             <Package size={18} />
             Produits
           </Link>
-          <Link href="/admin/settings" className="flex items-center gap-3 px-4 py-3 text-stone-300 hover:bg-[#1a1c1b] hover:text-white transition-colors rounded-none">
-            <Settings size={18} />
-            Paramètres
-          </Link>
+
           {/* Orders are handled on the main admin page currently, but we can add a specific link if needed */}
         </nav>
         <div className="p-4 border-t border-stone-700">

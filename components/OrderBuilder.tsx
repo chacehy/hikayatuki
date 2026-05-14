@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { submitOrder } from "@/app/actions/order";
-import { getWilayas, getCommunes } from "@/app/actions/yalidine";
 import { Upload, X, Check, Loader2 } from "lucide-react";
 
 type ItemCategory = {
@@ -51,9 +50,6 @@ export default function OrderBuilder() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
-  const [wilayas, setWilayas] = useState<{id: number, name: string}[]>([]);
-  const [communes, setCommunes] = useState<{id: number, name: string}[]>([]);
-  const [wilayaId, setWilayaId] = useState("");
   const [wilayaName, setWilayaName] = useState("");
   const [communeName, setCommuneName] = useState("");
   const [address, setAddress] = useState("");
@@ -73,25 +69,7 @@ export default function OrderBuilder() {
     });
   };
 
-  useEffect(() => {
-    getWilayas().then(setWilayas);
-  }, []);
 
-  const handleWilayaChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selectedId = e.target.value;
-    setWilayaId(selectedId);
-    
-    const selectedWilaya = wilayas.find(w => w.id.toString() === selectedId);
-    setWilayaName(selectedWilaya ? selectedWilaya.name : "");
-    setCommuneName(""); // reset commune
-    
-    if (selectedId) {
-      const comms = await getCommunes(parseInt(selectedId));
-      setCommunes(comms);
-    } else {
-      setCommunes([]);
-    }
-  };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -154,7 +132,6 @@ export default function OrderBuilder() {
       setPhotoPreview(null);
       setFullName("");
       setPhone("");
-      setWilayaId("");
       setWilayaName("");
       setCommuneName("");
       setAddress("");
@@ -304,32 +281,25 @@ export default function OrderBuilder() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label htmlFor="wilaya" className="block text-sm text-stone-300 mb-2">Wilaya</label>
-              <select 
+              <input 
+                type="text"
                 id="wilaya"
-                value={wilayaId}
-                onChange={handleWilayaChange}
-                className="w-full bg-[#1a1c1b] border border-stone-700 text-white px-4 py-3 focus:outline-none focus:border-[#8c7b65] transition-colors rounded-none appearance-none"
-              >
-                <option value="">Sélectionnez...</option>
-                {wilayas.map(w => (
-                  <option key={w.id} value={w.id}>{w.name}</option>
-                ))}
-              </select>
+                value={wilayaName}
+                onChange={(e) => setWilayaName(e.target.value)}
+                className="w-full bg-[#1a1c1b] border border-stone-700 text-white px-4 py-3 focus:outline-none focus:border-[#8c7b65] transition-colors rounded-none"
+                placeholder="Ex: Alger"
+              />
             </div>
             <div>
               <label htmlFor="commune" className="block text-sm text-stone-300 mb-2">Commune</label>
-              <select 
+              <input 
+                type="text"
                 id="commune"
                 value={communeName}
                 onChange={(e) => setCommuneName(e.target.value)}
-                disabled={!wilayaId || communes.length === 0}
-                className="w-full bg-[#1a1c1b] border border-stone-700 text-white px-4 py-3 focus:outline-none focus:border-[#8c7b65] transition-colors rounded-none appearance-none disabled:opacity-50"
-              >
-                <option value="">Sélectionnez...</option>
-                {communes.map(c => (
-                  <option key={c.id} value={c.name}>{c.name}</option>
-                ))}
-              </select>
+                className="w-full bg-[#1a1c1b] border border-stone-700 text-white px-4 py-3 focus:outline-none focus:border-[#8c7b65] transition-colors rounded-none"
+                placeholder="Ex: Bab Ezzouar"
+              />
             </div>
           </div>
 

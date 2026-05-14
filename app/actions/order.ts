@@ -70,22 +70,16 @@ export async function submitOrder(formData: FormData) {
   }
 }
 
-import { createParcel } from "@/app/actions/yalidine";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 export async function confirmOrder(formData: FormData) {
   try {
     let orderId = "";
-    let priceStr = "";
     for (const [key, value] of formData.entries()) {
       if (key === "orderId" || key.endsWith("_orderId")) orderId = value.toString();
-      if (key === "price" || key.endsWith("_price")) priceStr = value.toString();
     }
     
-    const price = priceStr ? parseFloat(priceStr) : 0;
-
-    // Get the order details to send to Yalidine
     const { data: order, error: orderError } = await supabase
       .from("orders")
       .select("*")
@@ -93,38 +87,13 @@ export async function confirmOrder(formData: FormData) {
       .single();
 
     if (orderError || !order) {
-      return { success: false, error: "Commande introuvable." };
-    }
-
-    let yalidineTracking = null;
-
-    // Try creating Yalidine Parcel if Wilaya is present
-    if (order.wilaya) {
-      try {
-        const parcelInfo = await createParcel({
-          orderId: order.id,
-          fullName: order.full_name,
-          phoneNumber: order.phone_number,
-          address: order.address || "Aucune adresse",
-          wilaya: order.wilaya,
-          commune: order.commune || "Aucune",
-          itemsSummary: order.items?.length > 0 ? "Articles multiples" : "Commande sur mesure",
-          price: price
-        });
-        if (parcelInfo && parcelInfo.tracking) {
-          yalidineTracking = parcelInfo.tracking;
-        }
-      } catch (err: any) {
-        console.error("Yalidine Parcel Creation Error:", err);
-        return { success: false, error: err.message || "Erreur lors de la création du colis Yalidine." };
-      }
+      throw new Error("Commande introuvable.");
     }
 
     const { error } = await supabase
       .from("orders")
       .update({ 
-        status: "CONFIRMED", 
-        yalidine_tracking: yalidineTracking 
+        status: "CONFIRMED"
       })
       .eq("id", orderId);
 
