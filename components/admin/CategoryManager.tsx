@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   createMainCategory,
   updateMainCategory,
@@ -39,7 +39,12 @@ export default function CategoryManager({
   const [editingSubId, setEditingSubId] = useState<string | null>(null);
   const [editSubName, setEditSubName] = useState("");
   const [editSubComposable, setEditSubComposable] = useState(false);
+  const [editSubImageUrl, setEditSubImageUrl] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setCategories(initialCategories);
+  }, [initialCategories]);
 
   const selectedMain = categories.find((c) => c.id === selectedMainId);
 
@@ -51,7 +56,6 @@ export default function CategoryManager({
     const result = await createMainCategory(fd);
     if (result.success) {
       setNewMainName("");
-      window.location.reload();
     }
     setLoading(false);
   };
@@ -63,14 +67,14 @@ export default function CategoryManager({
     fd.set("name", editMainName.trim());
     await updateMainCategory(id, fd);
     setEditingMainId(null);
-    window.location.reload();
+    setLoading(false);
   };
 
   const handleDeleteMain = async (id: string) => {
     if (!confirm("Supprimer cette catégorie principale et toutes ses sous-catégories ?")) return;
     setLoading(true);
     await deleteMainCategory(id);
-    window.location.reload();
+    setLoading(false);
   };
 
   const handleCreateSub = async () => {
@@ -84,7 +88,6 @@ export default function CategoryManager({
     if (result.success) {
       setNewSubName("");
       setNewSubComposable(false);
-      window.location.reload();
     }
     setLoading(false);
   };
@@ -95,22 +98,26 @@ export default function CategoryManager({
     const fd = new FormData();
     fd.set("name", editSubName.trim());
     fd.set("is_composable", editSubComposable ? "true" : "false");
+    fd.set("image_url", editSubImageUrl.trim());
     await updateSubCategory(id, fd);
     setEditingSubId(null);
-    window.location.reload();
+    setLoading(false);
   };
 
   const handleDeleteSub = async (id: string) => {
     if (!confirm("Supprimer cette sous-catégorie ?")) return;
     setLoading(true);
     await deleteSubCategory(id);
-    window.location.reload();
+    setLoading(false);
   };
 
   const handleToggleComposable = async (id: string, current: boolean) => {
     setLoading(true);
-    await toggleComposable(id, !current);
-    window.location.reload();
+    const fd = new FormData();
+    fd.set("id", id);
+    fd.set("is_composable", (!current).toString());
+    await toggleComposable(fd);
+    setLoading(false);
   };
 
   return (
@@ -254,39 +261,55 @@ export default function CategoryManager({
                     className="flex items-center justify-between px-4 py-3 hover:bg-stone-50/50"
                   >
                     {editingSubId === sub.id ? (
-                      <div className="flex items-center gap-2 flex-1">
-                        <input
-                          type="text"
-                          value={editSubName}
-                          onChange={(e) => setEditSubName(e.target.value)}
-                          className="flex-1 border border-stone-300 px-2 py-1 text-sm focus:outline-none focus:border-[#8c7b65]"
-                          autoFocus
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") handleUpdateSub(sub.id);
-                            if (e.key === "Escape") setEditingSubId(null);
-                          }}
-                        />
-                        <label className="flex items-center gap-1 text-xs text-stone-500">
+                      <div className="flex flex-col gap-2 flex-1">
+                        <div className="flex items-center gap-2">
                           <input
-                            type="checkbox"
-                            checked={editSubComposable}
-                            onChange={(e) => setEditSubComposable(e.target.checked)}
-                            className="accent-[#8c7b65]"
+                            type="text"
+                            value={editSubName}
+                            onChange={(e) => setEditSubName(e.target.value)}
+                            className="flex-1 border border-stone-300 px-2 py-1 text-sm focus:outline-none focus:border-[#8c7b65]"
+                            autoFocus
+                            placeholder="Nom"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") handleUpdateSub(sub.id);
+                              if (e.key === "Escape") setEditingSubId(null);
+                            }}
                           />
-                          Composable
-                        </label>
-                        <button
-                          onClick={() => handleUpdateSub(sub.id)}
-                          className="p-1 text-emerald-600 hover:text-emerald-800"
-                        >
-                          <Check size={14} />
-                        </button>
-                        <button
-                          onClick={() => setEditingSubId(null)}
-                          className="p-1 text-stone-400 hover:text-stone-600"
-                        >
-                          <X size={14} />
-                        </button>
+                          <input
+                            type="text"
+                            value={editSubImageUrl}
+                            onChange={(e) => setEditSubImageUrl(e.target.value)}
+                            className="flex-1 border border-stone-300 px-2 py-1 text-sm focus:outline-none focus:border-[#8c7b65]"
+                            placeholder="URL d'image (optionnel)"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") handleUpdateSub(sub.id);
+                              if (e.key === "Escape") setEditingSubId(null);
+                            }}
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <label className="flex items-center gap-1 text-xs text-stone-500">
+                            <input
+                              type="checkbox"
+                              checked={editSubComposable}
+                              onChange={(e) => setEditSubComposable(e.target.checked)}
+                              className="accent-[#8c7b65]"
+                            />
+                            Composable
+                          </label>
+                          <button
+                            onClick={() => handleUpdateSub(sub.id)}
+                            className="p-1 text-emerald-600 hover:text-emerald-800 ml-auto"
+                          >
+                            <Check size={14} />
+                          </button>
+                          <button
+                            onClick={() => setEditingSubId(null)}
+                            className="p-1 text-stone-400 hover:text-stone-600"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
                       </div>
                     ) : (
                       <>
@@ -320,6 +343,7 @@ export default function CategoryManager({
                               setEditingSubId(sub.id);
                               setEditSubName(sub.name);
                               setEditSubComposable(sub.is_composable);
+                              setEditSubImageUrl(sub.image_url || "");
                             }}
                             className="p-1 text-stone-400 hover:text-[#8c7b65]"
                           >

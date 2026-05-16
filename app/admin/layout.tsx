@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Package, LayoutDashboard, FolderTree, Gem } from "lucide-react";
+import { Package, LayoutDashboard, FolderTree, Gem, Truck } from "lucide-react";
 
 export default function AdminLayout({
   children,
@@ -32,6 +32,10 @@ export default function AdminLayout({
           <Link href="/admin/materials" className="flex items-center gap-3 px-4 py-3 text-stone-300 hover:bg-[#1a1c1b] hover:text-white transition-colors rounded-none">
             <Gem size={18} />
             Matières Premières
+          </Link>
+          <Link href="/admin/yalidine" className="flex items-center gap-3 px-4 py-3 text-stone-300 hover:bg-[#1a1c1b] hover:text-white transition-colors rounded-none">
+            <Truck size={18} />
+            Livraison Yalidine
           </Link>
         </nav>
         <div className="p-4 border-t border-stone-700">

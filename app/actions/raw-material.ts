@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache";
 export async function getRawMaterials() {
   const { data, error } = await supabase
     .from("raw_materials")
-    .select("*")
+    .select("*, sub_category_materials(sub_category_id)")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -90,6 +90,7 @@ export async function createRawMaterial(formData: FormData) {
     }
 
     revalidatePath("/admin/materials");
+    revalidatePath("/composer");
     return { success: true };
   } catch (err) {
     console.error(err);
@@ -139,6 +140,7 @@ export async function updateRawMaterial(id: string, formData: FormData) {
     }
 
     revalidatePath("/admin/materials");
+    revalidatePath("/composer");
     return { success: true };
   } catch (err) {
     console.error(err);
@@ -155,6 +157,7 @@ export async function deleteRawMaterial(id: string) {
   }
 
   revalidatePath("/admin/materials");
+  revalidatePath("/composer");
   return { success: true };
 }
 
@@ -170,6 +173,7 @@ export async function toggleRawMaterialVisibility(id: string, isVisible: boolean
   }
 
   revalidatePath("/admin/materials");
+  revalidatePath("/composer");
   return { success: true };
 }
 
@@ -189,6 +193,7 @@ export async function linkMaterialToSubCategory(
   }
 
   revalidatePath("/admin/materials");
+  revalidatePath("/composer");
   return { success: true };
 }
 
@@ -208,6 +213,7 @@ export async function unlinkMaterialFromSubCategory(
   }
 
   revalidatePath("/admin/materials");
+  revalidatePath("/composer");
   return { success: true };
 }
 
@@ -244,5 +250,6 @@ export async function updateMaterialLinks(
   }
 
   revalidatePath("/admin/materials");
+  revalidatePath("/composer");
   return { success: true };
 }

@@ -1,10 +1,114 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { addProduct } from "@/app/actions/product";
 import { getMainCategories } from "@/app/actions/category";
 import type { MainCategory, SubCategory } from "@/lib/types";
-import { Upload, Loader2 } from "lucide-react";
+import { Upload, Loader2, ChevronDown, Check } from "lucide-react";
+
+function CustomSelect({
+  label,
+  value,
+  onChange,
+  options,
+  placeholder = "— Sélectionner —",
+}: {
+  label: string;
+  value: string;
+  onChange: (val: string) => void;
+  options: { id: string; label: string; badge?: string }[];
+  placeholder?: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const selectedOption = options.find((o) => o.id === value);
+  const selectRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (selectRef.current && !selectRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={selectRef}>
+      <label className="block text-sm font-medium text-stone-700 mb-1">{label}</label>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full bg-white border border-stone-300 px-3 py-2 text-sm text-left flex items-center justify-between focus:outline-none focus:border-[#8c7b65] focus:ring-1 focus:ring-[#8c7b65] transition-all shadow-sm group"
+      >
+        <span className={`truncate capitalize ${!selectedOption ? "text-stone-400" : "text-[#2c302e] font-medium"}`}>
+          {selectedOption ? (
+            <span className="flex items-center gap-2">
+              {selectedOption.label}
+              {selectedOption.badge && (
+                <span className="bg-[#8c7b65]/10 text-[#8c7b65] px-1.5 py-0.5 text-xs font-bold rounded">
+                  {selectedOption.badge}
+                </span>
+              )}
+            </span>
+          ) : (
+            placeholder
+          )}
+        </span>
+        <ChevronDown
+          size={16}
+          className={`text-stone-400 group-hover:text-stone-600 transition-transform duration-200 ${
+            isOpen ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-50 w-full mt-1 bg-white border border-stone-200 shadow-lg max-h-60 overflow-auto divide-y divide-stone-100 animate-in fade-in-80 zoom-in-95 duration-100">
+          <button
+            type="button"
+            onClick={() => {
+              onChange("");
+              setIsOpen(false);
+            }}
+            className={`w-full px-3 py-2.5 text-sm text-left transition-colors flex items-center justify-between ${
+              value === "" ? "bg-[#8c7b65]/10 text-[#8c7b65] font-medium" : "text-stone-500 hover:bg-stone-50"
+            }`}
+          >
+            <span>{placeholder}</span>
+            {value === "" && <Check size={16} className="text-[#8c7b65]" />}
+          </button>
+          {options.map((opt) => {
+            const isSelected = value === opt.id;
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => {
+                  onChange(opt.id);
+                  setIsOpen(false);
+                }}
+                className={`w-full px-3 py-2.5 text-sm text-left capitalize transition-colors flex items-center justify-between ${
+                  isSelected ? "bg-[#8c7b65]/10 text-[#8c7b65] font-semibold" : "text-[#2c302e] hover:bg-stone-50"
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  {opt.label}
+                  {opt.badge && (
+                    <span className="bg-[#8c7b65]/10 text-[#8c7b65] px-1.5 py-0.5 text-xs font-bold rounded">
+                      {opt.badge}
+                    </span>
+                  )}
+                </span>
+                {isSelected && <Check size={16} className="text-[#8c7b65]" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ProductForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -79,44 +183,24 @@ export default function ProductForm() {
       </div>
 
       {/* Category Selection */}
-      <div>
-        <label htmlFor="main_category" className="block text-sm font-medium text-stone-700 mb-1">
-          Catégorie principale
-        </label>
-        <select
-          id="main_category"
-          value={selectedMainId}
-          onChange={(e) => setSelectedMainId(e.target.value)}
-          className="w-full border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:border-[#8c7b65] focus:ring-1 focus:ring-[#8c7b65] bg-white capitalize"
-        >
-          <option value="">— Sélectionner —</option>
-          {categories.map((cat) => (
-            <option key={cat.id} value={cat.id} className="capitalize">
-              {cat.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      <CustomSelect
+        label="Catégorie principale"
+        value={selectedMainId}
+        onChange={setSelectedMainId}
+        options={categories.map((cat) => ({ id: cat.id, label: cat.name }))}
+      />
 
       {subCategories.length > 0 && (
-        <div>
-          <label htmlFor="sub_category" className="block text-sm font-medium text-stone-700 mb-1">
-            Sous-catégorie
-          </label>
-          <select
-            id="sub_category"
-            value={selectedSubId}
-            onChange={(e) => setSelectedSubId(e.target.value)}
-            className="w-full border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:border-[#8c7b65] focus:ring-1 focus:ring-[#8c7b65] bg-white capitalize"
-          >
-            <option value="">— Sélectionner —</option>
-            {subCategories.map((sub) => (
-              <option key={sub.id} value={sub.id} className="capitalize">
-                {sub.name} {sub.is_composable ? "✦" : ""}
-              </option>
-            ))}
-          </select>
-        </div>
+        <CustomSelect
+          label="Sous-catégorie"
+          value={selectedSubId}
+          onChange={setSelectedSubId}
+          options={subCategories.map((sub) => ({
+            id: sub.id,
+            label: sub.name,
+            badge: sub.is_composable ? "✦ Composable" : undefined,
+          }))}
+        />
       )}
 
       <div>

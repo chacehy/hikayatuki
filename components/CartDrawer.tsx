@@ -5,6 +5,7 @@ import { useCartStore } from "@/lib/store";
 import { X, ShoppingBag, Trash2, Plus, Minus, Loader2, ArrowLeft, Check } from "lucide-react";
 import Image from "next/image";
 import { submitOrder } from "@/app/actions/order";
+import DeliveryAddressSelector from "@/components/DeliveryAddressSelector";
 
 export default function CartDrawer() {
   const { items, isCartOpen, toggleCart, removeItem, updateQuantity, clearCart } = useCartStore();
@@ -12,15 +13,15 @@ export default function CartDrawer() {
   const [isCheckout, setIsCheckout] = useState(false);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
-  const [wilayaName, setWilayaName] = useState("");
-  const [communeName, setCommuneName] = useState("");
-  const [address, setAddress] = useState("");
+  const [deliveryData, setDeliveryData] = useState<any>(null);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
   const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const deliveryFee = deliveryData?.deliveryFee || 0;
+  const grandTotal = total + deliveryFee;
 
   useEffect(() => {
     if (!isCartOpen) {
@@ -35,8 +36,18 @@ export default function CartDrawer() {
     e.preventDefault();
     setErrorMsg("");
 
-    if (!fullName || !phone || !wilayaName || !communeName || !address) {
-      setErrorMsg("Veuillez remplir toutes vos informations de livraison.");
+    if (!fullName || !phone) {
+      setErrorMsg("Veuillez remplir votre nom et téléphone.");
+      return;
+    }
+
+    if (!deliveryData?.wilayaName || !deliveryData?.communeName) {
+      setErrorMsg("Veuillez sélectionner votre wilaya et commune.");
+      return;
+    }
+
+    if (deliveryData.deliveryType === "home" && !deliveryData.address) {
+      setErrorMsg("Veuillez entrer votre adresse de livraison.");
       return;
     }
 
@@ -45,9 +56,17 @@ export default function CartDrawer() {
     const formData = new FormData();
     formData.append("fullName", fullName);
     formData.append("phoneNumber", phone);
-    formData.append("wilaya", wilayaName);
-    formData.append("commune", communeName);
-    formData.append("address", address);
+    formData.append("wilaya", deliveryData.wilayaName);
+    formData.append("commune", deliveryData.communeName);
+    formData.append("address", deliveryData.address || "");
+    formData.append("wilaya_id", String(deliveryData.wilayaId));
+    formData.append("commune_id", String(deliveryData.communeId));
+    formData.append("delivery_type", deliveryData.deliveryType);
+    formData.append("delivery_fee", String(deliveryData.deliveryFee || 0));
+    if (deliveryData.stopDeskId) {
+      formData.append("stop_desk_id", String(deliveryData.stopDeskId));
+    }
+    formData.append("order_type", "shop");
     
     // Map store items to the format expected by the backend
     const formattedItems = items.map(item => ({
@@ -55,9 +74,6 @@ export default function CartDrawer() {
       item: `${item.quantity}x ${item.name} (${item.price} DA)`
     }));
     formData.append("items", JSON.stringify(formattedItems));
-    
-    // We can also pass total price to order if we want, but for now we rely on confirmOrder to set price.
-    // formData.append("price", total.toString());
 
     const result = await submitOrder(formData);
 
@@ -150,41 +166,9 @@ export default function CartDrawer() {
                 />
               </div>
 
-              <div>
-                <label htmlFor="cartWilaya" className="block text-sm font-bold text-stone-700 mb-1">Wilaya</label>
-                <input 
-                  type="text"
-                  id="cartWilaya"
-                  value={wilayaName}
-                  onChange={(e) => setWilayaName(e.target.value)}
-                  className="w-full border border-stone-300 px-3 py-2 focus:outline-none focus:border-[#8c7b65]"
-                  required
-                />
-              </div>
-
-              <div>
-                <label htmlFor="cartCommune" className="block text-sm font-bold text-stone-700 mb-1">Commune</label>
-                <input 
-                  type="text"
-                  id="cartCommune"
-                  value={communeName}
-                  onChange={(e) => setCommuneName(e.target.value)}
-                  className="w-full border border-stone-300 px-3 py-2 focus:outline-none focus:border-[#8c7b65]"
-                  required
-                />
-              </div>
-
-              <div>
-                <label htmlFor="cartAddress" className="block text-sm font-bold text-stone-700 mb-1">Adresse Complète</label>
-                <input 
-                  type="text" 
-                  id="cartAddress"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="w-full border border-stone-300 px-3 py-2 focus:outline-none focus:border-[#8c7b65]"
-                  required
-                />
-              </div>
+              <DeliveryAddressSelector
+                onDeliveryChange={setDeliveryData}
+              />
             </form>
           ) : items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-stone-500 space-y-4">
@@ -241,9 +225,23 @@ export default function CartDrawer() {
 
         {!success && items.length > 0 && (
           <div className="p-6 bg-white border-t border-stone-200">
-            <div className="flex justify-between items-center mb-6">
-              <span className="font-bold text-[#2c302e]">Total</span>
-              <span className="text-xl font-bold text-[#8c7b65]">{total.toFixed(2)} DA</span>
+            <div className="space-y-2 mb-4">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-stone-500">Sous-total</span>
+                <span className="font-medium text-[#2c302e]">{total.toFixed(2)} DA</span>
+              </div>
+              {isCheckout && deliveryFee > 0 && (
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-stone-500">Livraison</span>
+                  <span className="font-medium text-[#2c302e]">{deliveryFee.toFixed(0)} DA</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center pt-2 border-t border-stone-100">
+                <span className="font-bold text-[#2c302e]">Total</span>
+                <span className="text-xl font-bold text-[#8c7b65]">
+                  {isCheckout ? grandTotal.toFixed(2) : total.toFixed(2)} DA
+                </span>
+              </div>
             </div>
             
             {isCheckout ? (

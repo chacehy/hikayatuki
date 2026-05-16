@@ -14,6 +14,11 @@ export async function submitOrder(formData: FormData) {
     const orderType = (formData.get("order_type") as string) || "composer";
     const composerSubCategoryId = formData.get("composer_sub_category_id") as string;
     const selectedMaterialsRaw = formData.get("selected_materials") as string;
+    const wilayaId = formData.get("wilaya_id") ? parseInt(formData.get("wilaya_id") as string) : null;
+    const communeId = formData.get("commune_id") ? parseInt(formData.get("commune_id") as string) : null;
+    const deliveryType = (formData.get("delivery_type") as string) || "home";
+    const deliveryFee = formData.get("delivery_fee") ? parseFloat(formData.get("delivery_fee") as string) : 0;
+    const stopDeskId = formData.get("stop_desk_id") ? parseInt(formData.get("stop_desk_id") as string) : null;
 
     if (!fullName) {
       return { success: false, error: "Le nom complet est requis." };
@@ -62,6 +67,11 @@ export async function submitOrder(formData: FormData) {
         order_type: orderType,
         composer_sub_category_id: composerSubCategoryId || null,
         selected_materials: selectedMaterials,
+        wilaya_id: wilayaId,
+        commune_id: communeId,
+        delivery_type: deliveryType,
+        delivery_fee: deliveryFee,
+        stop_desk_id: stopDeskId,
       },
     ]);
 

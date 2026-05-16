@@ -199,7 +199,7 @@ export async function updateSubCategory(id: string, formData: FormData) {
 
     const { error } = await supabase
       .from("sub_categories")
-      .update({ name, slug, is_composable: isComposable })
+      .update({ name, slug, is_composable: isComposable, image_url: formData.get("image_url") as string | null })
       .eq("id", id);
 
     if (error) {
@@ -227,7 +227,10 @@ export async function deleteSubCategory(id: string) {
   return { success: true };
 }
 
-export async function toggleComposable(id: string, isComposable: boolean) {
+export async function toggleComposable(formData: FormData) {
+  const id = formData.get("id") as string;
+  const isComposable = formData.get("is_composable") === "true";
+
   const { error } = await supabase
     .from("sub_categories")
     .update({ is_composable: isComposable })

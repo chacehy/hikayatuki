@@ -1,8 +1,9 @@
 import { supabase } from "@/lib/supabase";
 import { confirmOrder, cancelOrder } from "@/app/actions/order";
+import { createYalidineParcel } from "@/app/actions/yalidine";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Truck, Package, MapPin } from "lucide-react";
 import { redirect } from "next/navigation";
 
 export default async function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -63,15 +64,70 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           <div className="p-8 grid md:grid-cols-[1fr_minmax(0,300px)] gap-10">
             {/* Items */}
             <div className="space-y-8">
+              {/* Delivery Info */}
               <div>
-                <h2 className="text-sm text-stone-400 uppercase tracking-widest mb-4 border-b border-stone-100 pb-2">Informations de Livraison</h2>
+                <h2 className="text-sm text-stone-400 uppercase tracking-widest mb-4 border-b border-stone-100 pb-2">
+                  <MapPin size={14} className="inline mr-1" />
+                  Informations de Livraison
+                </h2>
                 <div className="bg-stone-50/50 p-4 border border-stone-100 flex flex-col gap-2">
-                  <p><span className="font-bold text-stone-600">Wilaya:</span> {order.wilaya || <span className="italic text-stone-400">Non renseignée</span>}</p>
-                  <p><span className="font-bold text-stone-600">Commune:</span> {order.commune || <span className="italic text-stone-400">Non renseignée</span>}</p>
-                  <p><span className="font-bold text-stone-600">Adresse:</span> {order.address || <span className="italic text-stone-400">Non renseignée</span>}</p>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-stone-600">Wilaya:</span>
+                    <span>{order.wilaya || <span className="italic text-stone-400">Non renseignée</span>}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-stone-600">Commune:</span>
+                    <span>{order.commune || <span className="italic text-stone-400">Non renseignée</span>}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-stone-600">Adresse:</span>
+                    <span>{order.address || <span className="italic text-stone-400">Non renseignée</span>}</span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2 pt-2 border-t border-stone-100">
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold ${
+                      order.delivery_type === 'desk'
+                        ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                        : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                    }`}>
+                      {order.delivery_type === 'desk' ? (
+                        <><Package size={12} /> Stop Desk</>
+                      ) : (
+                        <><Truck size={12} /> À Domicile</>
+                      )}
+                    </span>
+                    {order.delivery_fee > 0 && (
+                      <span className="text-sm font-mono text-stone-600">
+                        Frais: {Number(order.delivery_fee).toFixed(0)} DA
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 
+              {/* Yalidine Tracking */}
+              {order.yalidine_tracking && (
+                <div>
+                  <h2 className="text-sm text-stone-400 uppercase tracking-widest mb-4 border-b border-stone-100 pb-2">
+                    <Truck size={14} className="inline mr-1" />
+                    Suivi Yalidine
+                  </h2>
+                  <div className="bg-emerald-50 border border-emerald-200 p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-emerald-600 font-bold uppercase tracking-wider mb-1">N° de suivi</p>
+                        <p className="font-mono font-bold text-emerald-900 text-lg">{order.yalidine_tracking}</p>
+                      </div>
+                      {order.yalidine_status && (
+                        <span className="bg-emerald-200 text-emerald-900 px-3 py-1 text-xs font-bold uppercase">
+                          {order.yalidine_status}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Articles */}
               <div>
                 <h2 className="text-sm text-stone-400 uppercase tracking-widest mb-4 border-b border-stone-100 pb-2">Articles Sélectionnés</h2>
               {order.items && order.items.length > 0 ? (
@@ -84,16 +140,33 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                   ))}
                 </ul>
               ) : (
-                <p className="text-stone-500 italic text-sm">Pas d'articles du catalogue sélectionnés.</p>
+                <p className="text-stone-500 italic text-sm">Pas d&apos;articles du catalogue sélectionnés.</p>
               )}
             </div>
+
+            {/* Selected Materials */}
+            {order.selected_materials && order.selected_materials.length > 0 && (
+              <div>
+                <h2 className="text-sm text-stone-400 uppercase tracking-widest mb-4 border-b border-stone-100 pb-2">Matières Premières</h2>
+                <ul className="space-y-2">
+                  {order.selected_materials.map((mat: any, idx: number) => (
+                    <li key={idx} className="flex items-center justify-between bg-stone-50/50 p-3 border border-stone-100">
+                      <span className="text-[#2c302e] font-bold text-sm">{mat.name} × {mat.quantity}</span>
+                      {mat.price > 0 && (
+                        <span className="font-mono text-sm text-[#8c7b65]">{(mat.price * mat.quantity).toFixed(2)} DA</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             </div>
 
             {/* Photo / Actions */}
             <div className="space-y-8">
               {order.photo_url && (
                 <div>
-                  <h2 className="text-sm text-stone-400 uppercase tracking-widest mb-4 border-b border-stone-100 pb-2">Photo d'inspiration</h2>
+                  <h2 className="text-sm text-stone-400 uppercase tracking-widest mb-4 border-b border-stone-100 pb-2">Photo d&apos;inspiration</h2>
                   <a href={order.photo_url} target="_blank" rel="noreferrer" className="block border-4 border-stone-100 hover:border-[#8c7b65] transition-colors relative group">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img 
@@ -126,6 +199,32 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                       className="w-full bg-stone-100 text-stone-500 hover:bg-rose-50 hover:text-rose-700 font-bold py-3 transition-colors tracking-widest uppercase text-sm border-none rounded-none"
                     >
                       Annuler la Commande
+                    </button>
+                  </form>
+                </div>
+              )}
+
+              {/* Yalidine Parcel Creation - only for confirmed orders without tracking */}
+              {order.status === 'CONFIRMED' && !order.yalidine_tracking && (
+                <div className="bg-[#f0ece1] border border-[#d4c8b5] p-4">
+                  <h3 className="text-sm font-bold text-[#6e5f4d] uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <Truck size={16} />
+                    Expédition Yalidine
+                  </h3>
+                  <p className="text-xs text-[#8c7b65] mb-4">
+                    Créer un colis Yalidine pour cette commande. Le numéro de suivi sera généré automatiquement.
+                  </p>
+                  <form action={async () => {
+                    "use server";
+                    await createYalidineParcel(order.id);
+                    revalidatePath(`/admin/orders/${order.id}`);
+                  }}>
+                    <button 
+                      type="submit"
+                      className="w-full bg-[#8c7b65] text-white hover:bg-[#6e5f4d] font-bold py-3 transition-colors tracking-widest uppercase text-sm border-none rounded-none flex items-center justify-center gap-2"
+                    >
+                      <Package size={16} />
+                      Créer le Colis Yalidine
                     </button>
                   </form>
                 </div>

@@ -5,8 +5,6 @@ import { submitOrder } from "@/app/actions/order";
 import { getRawMaterialsBySubCategory } from "@/app/actions/raw-material";
 import type { SubCategory, RawMaterial } from "@/lib/types";
 import {
-  Upload,
-  X,
   Check,
   Loader2,
   Sparkles,
@@ -15,18 +13,12 @@ import {
   Minus,
 } from "lucide-react";
 import Image from "next/image";
-
-interface GroupedCategories {
-  [mainId: string]: {
-    mainName: string;
-    subs: SubCategory[];
-  };
-}
+import DeliveryAddressSelector from "@/components/DeliveryAddressSelector";
 
 export default function OrderBuilder({
-  groupedCategories,
+  subCategories,
 }: {
-  groupedCategories: GroupedCategories;
+  subCategories: SubCategory[];
 }) {
   // ── Step management ──
   const [step, setStep] = useState(1);
@@ -42,16 +34,10 @@ export default function OrderBuilder({
     Record<string, number>
   >({});
 
-  // ── Step 3: Photo ──
-  const [photo, setPhoto] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-
-  // ── Step 4: Contact info ──
+  // ── Step 3: Contact info ──
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
-  const [wilayaName, setWilayaName] = useState("");
-  const [communeName, setCommuneName] = useState("");
-  const [address, setAddress] = useState("");
+  const [deliveryData, setDeliveryData] = useState<any>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -98,19 +84,6 @@ export default function OrderBuilder({
     });
   };
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setPhoto(file);
-      setPhotoPreview(URL.createObjectURL(file));
-    }
-  };
-
-  const removePhoto = () => {
-    setPhoto(null);
-    setPhotoPreview(null);
-  };
-
   const selectedMaterialCount = Object.keys(selectedMaterials).length;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -125,8 +98,12 @@ export default function OrderBuilder({
       setErrorMsg("Veuillez entrer votre numéro de mobile.");
       return;
     }
-    if (!wilayaName || !communeName || !address) {
-      setErrorMsg("Veuillez remplir toutes vos informations de livraison.");
+    if (!deliveryData?.wilayaName || !deliveryData?.communeName) {
+      setErrorMsg("Veuillez sélectionner votre wilaya et commune.");
+      return;
+    }
+    if (deliveryData.deliveryType === "home" && !deliveryData.address) {
+      setErrorMsg("Veuillez entrer votre adresse de livraison.");
       return;
     }
 
@@ -148,9 +125,16 @@ export default function OrderBuilder({
     const formData = new FormData();
     formData.append("fullName", fullName);
     formData.append("phoneNumber", phone);
-    formData.append("wilaya", wilayaName);
-    formData.append("commune", communeName);
-    formData.append("address", address);
+    formData.append("wilaya", deliveryData.wilayaName);
+    formData.append("commune", deliveryData.communeName);
+    formData.append("address", deliveryData.address || "");
+    formData.append("wilaya_id", String(deliveryData.wilayaId));
+    formData.append("commune_id", String(deliveryData.communeId));
+    formData.append("delivery_type", deliveryData.deliveryType);
+    formData.append("delivery_fee", String(deliveryData.deliveryFee || 0));
+    if (deliveryData.stopDeskId) {
+      formData.append("stop_desk_id", String(deliveryData.stopDeskId));
+    }
     formData.append("order_type", "composer");
     formData.append("composer_sub_category_id", selectedSubId || "");
     formData.append(
@@ -163,9 +147,6 @@ export default function OrderBuilder({
       ])
     );
     formData.append("selected_materials", JSON.stringify(materialItems));
-    if (photo) {
-      formData.append("photo", photo);
-    }
 
     const result = await submitOrder(formData);
     setIsSubmitting(false);
@@ -199,13 +180,9 @@ export default function OrderBuilder({
             setStep(1);
             setSelectedSubId(null);
             setSelectedMaterials({});
-            setPhoto(null);
-            setPhotoPreview(null);
             setFullName("");
             setPhone("");
-            setWilayaName("");
-            setCommuneName("");
-            setAddress("");
+            setDeliveryData(null);
           }}
           className="bg-[#2c302e] text-white py-3 px-8 hover:bg-[#1a1c1b] transition-colors font-medium border-none rounded-none"
         >
@@ -219,7 +196,7 @@ export default function OrderBuilder({
     <div className="w-full max-w-3xl mx-auto space-y-8 pb-20">
       {/* Progress Steps */}
       <div className="flex items-center justify-center gap-3 mb-8">
-        {[1, 2, 3, 4].map((s) => (
+        {[1, 2, 3].map((s) => (
           <div key={s} className="flex items-center gap-3">
             <button
               onClick={() => {
@@ -235,7 +212,7 @@ export default function OrderBuilder({
             >
               {s < step ? <Check size={16} /> : s}
             </button>
-            {s < 4 && (
+            {s < 3 && (
               <div
                 className={`w-12 h-[2px] ${
                   s < step ? "bg-[#2c302e]" : "bg-stone-200"
@@ -258,33 +235,34 @@ export default function OrderBuilder({
             </p>
           </div>
 
-          {Object.entries(groupedCategories).map(
-            ([mainId, { mainName, subs }]) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {subCategories.map((sub: SubCategory) => (
               <div
-                key={mainId}
-                className="bg-white p-6 border border-stone-100 shadow-sm"
+                key={sub.id}
+                onClick={() => handleSelectFramework(sub)}
+                className="group relative h-48 sm:h-64 cursor-pointer overflow-hidden bg-stone-200 border border-stone-200"
               >
-                <h3 className="text-lg font-bold text-[#2c302e] mb-4 border-b border-stone-100 pb-2 capitalize">
-                  {mainName}
-                </h3>
-                <div className="flex flex-wrap gap-3">
-                  {subs.map((sub: SubCategory) => (
-                    <button
-                      key={sub.id}
-                      onClick={() => handleSelectFramework(sub)}
-                      className="group relative px-5 py-3 text-sm font-medium transition-all border bg-white text-stone-600 border-stone-200 hover:border-[#8c7b65] hover:text-[#8c7b65] hover:shadow-md capitalize"
-                    >
-                      <Sparkles
-                        size={12}
-                        className="inline mr-2 text-amber-500"
-                      />
-                      {sub.name}
-                    </button>
-                  ))}
+                {sub.image_url ? (
+                  <Image
+                    src={sub.image_url}
+                    alt={sub.name}
+                    fill
+                    className="object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center text-stone-400 bg-stone-100 group-hover:bg-stone-200 transition-colors">
+                    <Sparkles size={48} className="opacity-20 mb-2" />
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors" />
+                <div className="absolute inset-0 flex items-center justify-center p-4">
+                  <h3 className="text-white text-xl sm:text-2xl font-bold text-center tracking-wider capitalize">
+                    {sub.name}
+                  </h3>
                 </div>
               </div>
-            )
-          )}
+            ))}
+          </div>
         </div>
       )}
 
@@ -317,7 +295,7 @@ export default function OrderBuilder({
           ) : materials.length === 0 ? (
             <div className="bg-white p-8 border border-stone-200 text-center text-stone-500">
               <p className="mb-4">Aucune matière première disponible pour cette catégorie.</p>
-              <p className="text-sm">Vous pouvez continuer avec une photo d&apos;inspiration.</p>
+              <p className="text-sm">Vous pouvez continuer vers l&apos;étape de finalisation.</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -411,76 +389,12 @@ export default function OrderBuilder({
         </div>
       )}
 
-      {/* ═══ Step 3: Photo (Optional) ═══ */}
+      {/* ═══ Step 3: Checkout Form ═══ */}
       {step === 3 && (
         <div className="space-y-8">
           <div className="text-center">
             <h2 className="text-xl text-[#8c7b65] font-semibold uppercase tracking-widest mb-2">
-              Étape 3 — Photo d&apos;Inspiration
-            </h2>
-            <p className="text-stone-500">
-              Optionnel : ajoutez une photo pour guider notre atelier.
-            </p>
-          </div>
-
-          <div className="bg-[#f9f6f0] p-6 border-l-4 border-[#8c7b65]">
-            {!photoPreview ? (
-              <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-[#8c7b65] cursor-pointer hover:bg-[#f0ece1] transition-colors rounded-none">
-                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                  <Upload className="w-8 h-8 mb-3 text-[#8c7b65]" />
-                  <p className="text-sm text-[#8c7b65] font-medium">
-                    Cliquez pour ajouter une image
-                  </p>
-                </div>
-                <input
-                  type="file"
-                  className="hidden"
-                  accept="image/*"
-                  onChange={handlePhotoChange}
-                />
-              </label>
-            ) : (
-              <div className="relative inline-block border-[6px] border-white shadow-md">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={photoPreview}
-                  alt="Aperçu"
-                  className="max-w-[200px] h-auto object-cover"
-                />
-                <button
-                  onClick={removePhoto}
-                  className="absolute -top-3 -right-3 bg-[#2c302e] text-white p-1 hover:bg-black transition-colors rounded-none"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="flex justify-between items-center">
-            <button
-              onClick={() => setStep(2)}
-              className="text-sm text-stone-500 hover:text-[#8c7b65] flex items-center gap-1 transition-colors"
-            >
-              <ArrowLeft size={14} />
-              Retour
-            </button>
-            <button
-              onClick={() => setStep(4)}
-              className="bg-[#2c302e] text-white px-6 py-3 text-sm font-bold tracking-wider uppercase hover:bg-black transition-colors"
-            >
-              Continuer
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ═══ Step 4: Checkout Form ═══ */}
-      {step === 4 && (
-        <div className="space-y-8">
-          <div className="text-center">
-            <h2 className="text-xl text-[#8c7b65] font-semibold uppercase tracking-widest mb-2">
-              Étape 4 — Vos Informations
+              Étape 3 — Vos Informations
             </h2>
             <p className="text-stone-500">Finalisez votre demande.</p>
           </div>
@@ -515,12 +429,6 @@ export default function OrderBuilder({
                   </div>
                 );
               })}
-              {photoPreview && (
-                <div className="flex justify-between border-b border-stone-50 pb-2">
-                  <span className="text-stone-500">Photo d&apos;inspiration</span>
-                  <span className="text-emerald-600 font-medium">✓ Ajoutée</span>
-                </div>
-              )}
             </div>
           </div>
 
@@ -572,56 +480,10 @@ export default function OrderBuilder({
                   className="w-full bg-[#1a1c1b] border border-stone-700 text-white px-4 py-3 focus:outline-none focus:border-[#8c7b65] transition-colors rounded-none"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label
-                    htmlFor="wilaya"
-                    className="block text-sm text-stone-300 mb-2"
-                  >
-                    Wilaya
-                  </label>
-                  <input
-                    type="text"
-                    id="wilaya"
-                    value={wilayaName}
-                    onChange={(e) => setWilayaName(e.target.value)}
-                    placeholder="Ex: Alger"
-                    className="w-full bg-[#1a1c1b] border border-stone-700 text-white px-4 py-3 focus:outline-none focus:border-[#8c7b65] transition-colors rounded-none"
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="commune"
-                    className="block text-sm text-stone-300 mb-2"
-                  >
-                    Commune
-                  </label>
-                  <input
-                    type="text"
-                    id="commune"
-                    value={communeName}
-                    onChange={(e) => setCommuneName(e.target.value)}
-                    placeholder="Ex: Bab Ezzouar"
-                    className="w-full bg-[#1a1c1b] border border-stone-700 text-white px-4 py-3 focus:outline-none focus:border-[#8c7b65] transition-colors rounded-none"
-                  />
-                </div>
-              </div>
-              <div>
-                <label
-                  htmlFor="address"
-                  className="block text-sm text-stone-300 mb-2"
-                >
-                  Adresse Complète
-                </label>
-                <input
-                  type="text"
-                  id="address"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Ex: Cité 200 logements, Batiment B"
-                  className="w-full bg-[#1a1c1b] border border-stone-700 text-white px-4 py-3 focus:outline-none focus:border-[#8c7b65] transition-colors rounded-none"
-                />
-              </div>
+              <DeliveryAddressSelector
+                onDeliveryChange={setDeliveryData}
+                darkMode={true}
+              />
 
               <button
                 type="submit"
@@ -641,7 +503,7 @@ export default function OrderBuilder({
           </form>
 
           <button
-            onClick={() => setStep(3)}
+            onClick={() => setStep(2)}
             className="text-sm text-stone-500 hover:text-[#8c7b65] flex items-center gap-1 transition-colors"
           >
             <ArrowLeft size={14} />

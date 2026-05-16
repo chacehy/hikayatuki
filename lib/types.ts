@@ -15,6 +15,7 @@ export interface SubCategory {
   name: string;
   slug: string;
   is_composable: boolean;
+  image_url?: string;
   display_order: number;
   created_at?: string;
   main_category?: MainCategory;

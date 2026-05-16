@@ -35,7 +35,9 @@ export default function ProductGrid({ categories, limit }: ProductGridProps) {
         query = query.eq("sub_category_id", selectedSubId);
       } else if (selectedMainId) {
         // Get sub_category_ids for this main category
-        const subIds = subCategories.map((sc) => sc.id);
+        const currentMain = categories?.find((c) => c.id === selectedMainId);
+        const currentSubs = currentMain?.sub_categories || [];
+        const subIds = currentSubs.map((sc) => sc.id);
         if (subIds.length > 0) {
           query = query.in("sub_category_id", subIds);
         } else {
@@ -57,7 +59,7 @@ export default function ProductGrid({ categories, limit }: ProductGridProps) {
     } finally {
       setLoading(false);
     }
-  }, [selectedMainId, selectedSubId, subCategories]);
+  }, [selectedMainId, selectedSubId, categories]);
 
   useEffect(() => {
     fetchProducts();

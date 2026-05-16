@@ -29,7 +29,6 @@ export default function MaterialForm() {
     if (result.success) {
       form.reset();
       setPhotoPreview(null);
-      window.location.reload();
     } else {
       setErrorMsg(result.error || "Erreur.");
     }
