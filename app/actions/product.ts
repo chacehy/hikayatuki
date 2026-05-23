@@ -1,10 +1,35 @@
 "use server";
 
 import { supabase } from "@/lib/supabase";
+import { getSupabaseServer } from "@/lib/supabase-server";
+import { verifyPermission } from "@/app/actions/auth";
 import { revalidatePath } from "next/cache";
 
-export async function getProducts() {
+/**
+ * Public action: Fetches product by ID including category details and all associated product images.
+ */
+export async function getProductById(id: string) {
   const { data, error } = await supabase
+    .from("products")
+    .select("*, sub_category:sub_categories(*, main_category:main_categories(*)), product_images(*)")
+    .eq("id", id)
+    .single();
+
+  if (error) {
+    console.error("Error fetching product by id:", error);
+    return null;
+  }
+  return data;
+}
+
+/**
+ * Admin action: Fetches all products (including hidden ones) for management.
+ */
+export async function getProducts() {
+  const staff = await verifyPermission("can_manage_inventory");
+  const client = staff ? await getSupabaseServer() : supabase;
+
+  const { data, error } = await client
     .from("products")
     .select("*, sub_category:sub_categories(*, main_category:main_categories(*))")
     .order("created_at", { ascending: false });
@@ -16,6 +41,9 @@ export async function getProducts() {
   return data;
 }
 
+/**
+ * Public action: Fetches visible products in a sub-category.
+ */
 export async function getProductsBySubCategory(subCategoryId: string) {
   const { data, error } = await supabase
     .from("products")
@@ -31,6 +59,9 @@ export async function getProductsBySubCategory(subCategoryId: string) {
   return data || [];
 }
 
+/**
+ * Public action: Fetches visible products in a main category.
+ */
 export async function getProductsByMainCategory(mainCategoryId: string) {
   // First get all sub_category ids for this main category
   const { data: subCats, error: scError } = await supabase
@@ -58,51 +89,105 @@ export async function getProductsByMainCategory(mainCategoryId: string) {
   return data || [];
 }
 
+/**
+ * Admin action: Adds a new product with multiple images and detailed descriptive fields.
+ */
 export async function addProduct(formData: FormData) {
+  const staff = await verifyPermission("can_manage_inventory");
+  if (!staff) {
+    return { success: false, error: "Non autorisé. Droits d'inventaire requis." };
+  }
+
   try {
     const name = formData.get("name") as string;
     const description = formData.get("description") as string;
     const price = parseFloat(formData.get("price") as string);
     const isVisible = formData.get("isVisible") === "true";
-    const photo = formData.get("photo") as File | null;
     const subCategoryId = formData.get("sub_category_id") as string | null;
 
-    let photoUrl = null;
+    // Expanded descriptive fields
+    const detailedDescription = formData.get("detailed_description") as string;
+    const careInstructions = formData.get("care_instructions") as string;
+    const flowerType = formData.get("flower_type") as string;
+    const sizes = formData.get("sizes") as string;
 
-    if (photo && photo.size > 0) {
-      const fileExt = photo.name.split(".").pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+    // Handle multiple photo uploads
+    const photos = formData.getAll("photos") as File[];
+    const uploadedUrls: string[] = [];
 
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from("products")
-        .upload(fileName, photo);
+    const client = await getSupabaseServer();
 
-      if (uploadError) {
-        console.error("Storage upload error:", uploadError);
-        return { success: false, error: "Erreur lors de l'envoi de l'image." };
+    for (const photo of photos) {
+      if (photo && photo.size > 0) {
+        const fileExt = photo.name.split(".").pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+        // CRITICAL BUGFIX: Convert file to ArrayBuffer & Buffer to prevent Next.js Server Action upload hanging
+        const arrayBuffer = await photo.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+
+        const { error: uploadError } = await client.storage
+          .from("products")
+          .upload(fileName, buffer, {
+            contentType: photo.type,
+            duplex: "half",
+          });
+
+        if (uploadError) {
+          console.error("Storage upload error for file:", photo.name, uploadError);
+          return { success: false, error: `Erreur lors de l'envoi de l'image : ${photo.name}` };
+        }
+
+        const { data: publicUrlData } = client.storage
+          .from("products")
+          .getPublicUrl(fileName);
+
+        uploadedUrls.push(publicUrlData.publicUrl);
       }
-
-      const { data: publicUrlData } = supabase.storage
-        .from("products")
-        .getPublicUrl(fileName);
-
-      photoUrl = publicUrlData.publicUrl;
     }
 
-    const { error } = await supabase.from("products").insert([
-      {
-        name,
-        description,
-        price,
-        is_visible: isVisible,
-        image_url: photoUrl,
-        sub_category_id: subCategoryId || null,
-      },
-    ]);
+    const mainImageUrl = uploadedUrls.length > 0 ? uploadedUrls[0] : null;
 
-    if (error) {
-      console.error("Database insert error:", error);
-      return { success: false, error: "Erreur lors de l'ajout du produit." };
+    // Insert primary product record
+    const { data: productData, error: insertError } = await client
+      .from("products")
+      .insert([
+        {
+          name,
+          description,
+          price,
+          is_visible: isVisible,
+          image_url: mainImageUrl,
+          sub_category_id: subCategoryId || null,
+          detailed_description: detailedDescription || null,
+          care_instructions: careInstructions || null,
+          flower_type: flowerType || null,
+          sizes: sizes || null,
+        },
+      ])
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error("Database insert error:", insertError);
+      return { success: false, error: "Erreur lors de l'ajout du produit dans la base de données." };
+    }
+
+    // Insert all uploaded image URLs into product_images table
+    if (uploadedUrls.length > 0 && productData) {
+      const imageRows = uploadedUrls.map((url, index) => ({
+        product_id: productData.id,
+        image_url: url,
+        display_order: index,
+      }));
+
+      const { error: imagesError } = await client
+        .from("product_images")
+        .insert(imageRows);
+
+      if (imagesError) {
+        console.error("Error inserting product images:", imagesError);
+      }
     }
 
     revalidatePath("/admin/products");
@@ -111,12 +196,21 @@ export async function addProduct(formData: FormData) {
     return { success: true };
   } catch (err) {
     console.error("Add product error:", err);
-    return { success: false, error: "Une erreur inattendue s'est produite." };
+    return { success: false, error: "Une erreur inattendue s'est produite lors de la création du produit." };
   }
 }
 
+/**
+ * Admin action: Deletes a product.
+ */
 export async function deleteProduct(id: string) {
-  const { error } = await supabase.from("products").delete().eq("id", id);
+  const staff = await verifyPermission("can_manage_inventory");
+  if (!staff) {
+    return { success: false, error: "Non autorisé." };
+  }
+
+  const client = await getSupabaseServer();
+  const { error } = await client.from("products").delete().eq("id", id);
   if (error) {
     console.error("Delete product error:", error);
     return { success: false, error: "Erreur lors de la suppression." };
@@ -127,8 +221,17 @@ export async function deleteProduct(id: string) {
   return { success: true };
 }
 
+/**
+ * Admin action: Toggles product visibility on shop.
+ */
 export async function toggleProductVisibility(id: string, isVisible: boolean) {
-  const { error } = await supabase
+  const staff = await verifyPermission("can_manage_inventory");
+  if (!staff) {
+    return { success: false, error: "Non autorisé." };
+  }
+
+  const client = await getSupabaseServer();
+  const { error } = await client
     .from("products")
     .update({ is_visible: isVisible })
     .eq("id", id);

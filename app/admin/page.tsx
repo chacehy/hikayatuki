@@ -1,11 +1,19 @@
-import { supabase } from "@/lib/supabase";
+import { verifyPermission } from "@/app/actions/auth";
+import { redirect } from "next/navigation";
+import { getSupabaseServer } from "@/lib/supabase-server";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
-  const { data: orders, error } = await supabase
+  const staff = await verifyPermission("can_view_orders");
+  if (!staff) {
+    redirect("/login");
+  }
+
+  const client = await getSupabaseServer();
+  const { data: orders, error } = await client
     .from("orders")
     .select("id, full_name, phone_number, created_at, status")
     .order("created_at", { ascending: false });

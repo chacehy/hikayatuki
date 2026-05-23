@@ -1,10 +1,17 @@
 import { getRawMaterials } from "@/app/actions/raw-material";
 import MaterialForm from "@/components/admin/MaterialForm";
 import MaterialList from "@/components/admin/MaterialList";
+import { verifyPermission } from "@/app/actions/auth";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminMaterialsPage() {
+  const staff = await verifyPermission("can_manage_inventory");
+  if (!staff) {
+    redirect("/login");
+  }
+
   const materials = await getRawMaterials();
 
   return (

@@ -1,12 +1,17 @@
 "use server";
 
 import { supabase } from "@/lib/supabase";
+import { getSupabaseServer } from "@/lib/supabase-server";
+import { verifyPermission } from "@/app/actions/auth";
 import { revalidatePath } from "next/cache";
 
 // ── Read Operations ──
 
 export async function getRawMaterials() {
-  const { data, error } = await supabase
+  const staff = await verifyPermission("can_manage_inventory");
+  const client = staff ? await getSupabaseServer() : supabase;
+
+  const { data, error } = await client
     .from("raw_materials")
     .select("*, sub_category_materials(sub_category_id)")
     .order("created_at", { ascending: false });
@@ -50,6 +55,11 @@ export async function getMaterialLinks(rawMaterialId: string) {
 // ── CRUD Operations ──
 
 export async function createRawMaterial(formData: FormData) {
+  const staff = await verifyPermission("can_manage_inventory");
+  if (!staff) {
+    return { success: false, error: "Non autorisé." };
+  }
+
   try {
     const name = formData.get("name") as string;
     const description = formData.get("description") as string;
@@ -58,29 +68,37 @@ export async function createRawMaterial(formData: FormData) {
 
     if (!name) return { success: false, error: "Le nom est requis." };
 
+    const client = await getSupabaseServer();
     let imageUrl = null;
 
     if (photo && photo.size > 0) {
       const fileExt = photo.name.split(".").pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
-      const { error: uploadError } = await supabase.storage
+      // BUGFIX: Convert to Buffer to prevent hang on Server Action upload
+      const arrayBuffer = await photo.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      const { error: uploadError } = await client.storage
         .from("materials")
-        .upload(fileName, photo);
+        .upload(fileName, buffer, {
+          contentType: photo.type,
+          duplex: "half",
+        });
 
       if (uploadError) {
         console.error("Storage upload error:", uploadError);
         return { success: false, error: "Erreur lors de l'envoi de l'image." };
       }
 
-      const { data: publicUrlData } = supabase.storage
+      const { data: publicUrlData } = client.storage
         .from("materials")
         .getPublicUrl(fileName);
 
       imageUrl = publicUrlData.publicUrl;
     }
 
-    const { error } = await supabase.from("raw_materials").insert([
+    const { error } = await client.from("raw_materials").insert([
       { name, description, price, image_url: imageUrl },
     ]);
 
@@ -99,6 +117,11 @@ export async function createRawMaterial(formData: FormData) {
 }
 
 export async function updateRawMaterial(id: string, formData: FormData) {
+  const staff = await verifyPermission("can_manage_inventory");
+  if (!staff) {
+    return { success: false, error: "Non autorisé." };
+  }
+
   try {
     const name = formData.get("name") as string;
     const description = formData.get("description") as string;
@@ -107,29 +130,37 @@ export async function updateRawMaterial(id: string, formData: FormData) {
 
     if (!name) return { success: false, error: "Le nom est requis." };
 
+    const client = await getSupabaseServer();
     const updates: any = { name, description, price };
 
     if (photo && photo.size > 0) {
       const fileExt = photo.name.split(".").pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
-      const { error: uploadError } = await supabase.storage
+      // BUGFIX: Convert to Buffer to prevent hang on Server Action upload
+      const arrayBuffer = await photo.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      const { error: uploadError } = await client.storage
         .from("materials")
-        .upload(fileName, photo);
+        .upload(fileName, buffer, {
+          contentType: photo.type,
+          duplex: "half",
+        });
 
       if (uploadError) {
         console.error("Storage upload error:", uploadError);
         return { success: false, error: "Erreur lors de l'envoi de l'image." };
       }
 
-      const { data: publicUrlData } = supabase.storage
+      const { data: publicUrlData } = client.storage
         .from("materials")
         .getPublicUrl(fileName);
 
       updates.image_url = publicUrlData.publicUrl;
     }
 
-    const { error } = await supabase
+    const { error } = await client
       .from("raw_materials")
       .update(updates)
       .eq("id", id);
@@ -149,7 +180,13 @@ export async function updateRawMaterial(id: string, formData: FormData) {
 }
 
 export async function deleteRawMaterial(id: string) {
-  const { error } = await supabase.from("raw_materials").delete().eq("id", id);
+  const staff = await verifyPermission("can_manage_inventory");
+  if (!staff) {
+    return { success: false, error: "Non autorisé." };
+  }
+
+  const client = await getSupabaseServer();
+  const { error } = await client.from("raw_materials").delete().eq("id", id);
 
   if (error) {
     console.error("Delete raw material error:", error);
@@ -162,7 +199,13 @@ export async function deleteRawMaterial(id: string) {
 }
 
 export async function toggleRawMaterialVisibility(id: string, isVisible: boolean) {
-  const { error } = await supabase
+  const staff = await verifyPermission("can_manage_inventory");
+  if (!staff) {
+    return { success: false, error: "Non autorisé." };
+  }
+
+  const client = await getSupabaseServer();
+  const { error } = await client
     .from("raw_materials")
     .update({ is_visible: isVisible })
     .eq("id", id);
@@ -183,7 +226,13 @@ export async function linkMaterialToSubCategory(
   rawMaterialId: string,
   subCategoryId: string
 ) {
-  const { error } = await supabase.from("sub_category_materials").insert([
+  const staff = await verifyPermission("can_manage_inventory");
+  if (!staff) {
+    return { success: false, error: "Non autorisé." };
+  }
+
+  const client = await getSupabaseServer();
+  const { error } = await client.from("sub_category_materials").insert([
     { raw_material_id: rawMaterialId, sub_category_id: subCategoryId },
   ]);
 
@@ -201,7 +250,13 @@ export async function unlinkMaterialFromSubCategory(
   rawMaterialId: string,
   subCategoryId: string
 ) {
-  const { error } = await supabase
+  const staff = await verifyPermission("can_manage_inventory");
+  if (!staff) {
+    return { success: false, error: "Non autorisé." };
+  }
+
+  const client = await getSupabaseServer();
+  const { error } = await client
     .from("sub_category_materials")
     .delete()
     .eq("raw_material_id", rawMaterialId)
@@ -221,8 +276,15 @@ export async function updateMaterialLinks(
   rawMaterialId: string,
   subCategoryIds: string[]
 ) {
+  const staff = await verifyPermission("can_manage_inventory");
+  if (!staff) {
+    return { success: false, error: "Non autorisé." };
+  }
+
+  const client = await getSupabaseServer();
+
   // Delete all existing links
-  const { error: deleteError } = await supabase
+  const { error: deleteError } = await client
     .from("sub_category_materials")
     .delete()
     .eq("raw_material_id", rawMaterialId);
@@ -239,7 +301,7 @@ export async function updateMaterialLinks(
       sub_category_id: scId,
     }));
 
-    const { error: insertError } = await supabase
+    const { error: insertError } = await client
       .from("sub_category_materials")
       .insert(rows);
 

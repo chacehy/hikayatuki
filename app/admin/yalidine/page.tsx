@@ -1,12 +1,23 @@
 import YalidineSyncButton from "@/components/admin/YalidineSyncButton";
-import { supabase } from "@/lib/supabase";
+import { getSupabaseServer } from "@/lib/supabase-server";
+import { verifyPermission } from "@/app/actions/auth";
+import { redirect } from "next/navigation";
+
+export const dynamic = "force-dynamic";
 
 export default async function YalidineSettingsPage() {
+  const staff = await verifyPermission("can_manage_yalidine");
+  if (!staff) {
+    redirect("/login");
+  }
+
+  const client = await getSupabaseServer();
+  
   // Check current data counts
   const [wilayaCount, communeCount, centerCount] = await Promise.all([
-    supabase.from("yalidine_wilayas").select("id", { count: "exact", head: true }),
-    supabase.from("yalidine_communes").select("id", { count: "exact", head: true }),
-    supabase.from("yalidine_centers").select("center_id", { count: "exact", head: true }),
+    client.from("yalidine_wilayas").select("id", { count: "exact", head: true }),
+    client.from("yalidine_communes").select("id", { count: "exact", head: true }),
+    client.from("yalidine_centers").select("center_id", { count: "exact", head: true }),
   ]);
 
   const counts = {

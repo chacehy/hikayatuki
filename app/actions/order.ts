@@ -1,7 +1,14 @@
 "use server";
 
 import { supabase } from "@/lib/supabase";
+import { getSupabaseServer } from "@/lib/supabase-server";
+import { verifyPermission } from "@/app/actions/auth";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
+/**
+ * Public action: Customer order submission.
+ */
 export async function submitOrder(formData: FormData) {
   try {
     const fullName = formData.get("fullName") as string;
@@ -37,9 +44,16 @@ export async function submitOrder(formData: FormData) {
       const fileExt = photo.name.split(".").pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
+      // BUGFIX: Convert file to ArrayBuffer and Buffer to prevent Node/Next Server Action upload hang
+      const arrayBuffer = await photo.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from("uploads")
-        .upload(fileName, photo);
+        .upload(fileName, buffer, {
+          contentType: photo.type,
+          duplex: "half",
+        });
 
       if (uploadError) {
         console.error("Storage upload error:", uploadError);
@@ -87,17 +101,24 @@ export async function submitOrder(formData: FormData) {
   }
 }
 
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-
+/**
+ * Admin action: Confirm order status.
+ */
 export async function confirmOrder(formData: FormData) {
+  const staff = await verifyPermission("can_view_orders");
+  if (!staff) {
+    throw new Error("Non autorisé. Permissions d'accès aux commandes requises.");
+  }
+
   try {
     let orderId = "";
     for (const [key, value] of formData.entries()) {
       if (key === "orderId" || key.endsWith("_orderId")) orderId = value.toString();
     }
     
-    const { data: order, error: orderError } = await supabase
+    const client = await getSupabaseServer();
+
+    const { data: order, error: orderError } = await client
       .from("orders")
       .select("*")
       .eq("id", orderId)
@@ -107,7 +128,7 @@ export async function confirmOrder(formData: FormData) {
       throw new Error("Commande introuvable.");
     }
 
-    const { error } = await supabase
+    const { error } = await client
       .from("orders")
       .update({ 
         status: "CONFIRMED"
@@ -128,14 +149,24 @@ export async function confirmOrder(formData: FormData) {
   }
 }
 
+/**
+ * Admin action: Cancel order status.
+ */
 export async function cancelOrder(formData: FormData) {
+  const staff = await verifyPermission("can_view_orders");
+  if (!staff) {
+    throw new Error("Non autorisé. Permissions d'accès aux commandes requises.");
+  }
+
   try {
     let orderId = "";
     for (const [key, value] of formData.entries()) {
       if (key === "orderId" || key.endsWith("_orderId")) orderId = value.toString();
     }
     
-    const { error } = await supabase
+    const client = await getSupabaseServer();
+
+    const { error } = await client
       .from("orders")
       .update({ status: "CANCELLED" })
       .eq("id", orderId);

@@ -1,10 +1,17 @@
 import { getProducts } from "@/app/actions/product";
 import ProductForm from "@/components/admin/ProductForm";
 import ProductList from "@/components/admin/ProductList";
+import { verifyPermission } from "@/app/actions/auth";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminProductsPage() {
+  const staff = await verifyPermission("can_manage_inventory");
+  if (!staff) {
+    redirect("/login");
+  }
+
   const products = await getProducts();
 
   return (

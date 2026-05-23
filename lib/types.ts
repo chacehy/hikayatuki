@@ -51,12 +51,25 @@ export interface Product {
   is_visible?: boolean;
   sub_category_id?: string;
   created_at?: string;
+  detailed_description?: string;
+  care_instructions?: string;
+  flower_type?: string;
+  sizes?: string;
+}
+
+export interface ProductImage {
+  id: string;
+  product_id: string;
+  image_url: string;
+  display_order?: number;
+  created_at?: string;
 }
 
 export interface ProductWithCategory extends Product {
   sub_category?: SubCategory & {
     main_category?: MainCategory;
   };
+  product_images?: ProductImage[];
 }
 
 // ── Composer Order Types ──

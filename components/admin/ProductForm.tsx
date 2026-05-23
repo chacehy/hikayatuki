@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { addProduct } from "@/app/actions/product";
 import { getMainCategories } from "@/app/actions/category";
 import type { MainCategory, SubCategory } from "@/lib/types";
-import { Upload, Loader2, ChevronDown, Check } from "lucide-react";
+import { Upload, Loader2, ChevronDown, Check, Image as ImageIcon, X } from "lucide-react";
 
 function CustomSelect({
   label,
@@ -113,7 +113,7 @@ function CustomSelect({
 export default function ProductForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [categories, setCategories] = useState<MainCategory[]>([]);
   const [selectedMainId, setSelectedMainId] = useState("");
   const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
@@ -135,11 +135,20 @@ export default function ProductForm() {
   }, [selectedMainId, categories]);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setPhotoPreview(URL.createObjectURL(e.target.files[0]));
+    if (e.target.files && e.target.files.length > 0) {
+      const filesArray = Array.from(e.target.files);
+      const previews = filesArray.map((file) => URL.createObjectURL(file));
+      setPhotoPreviews(previews);
     } else {
-      setPhotoPreview(null);
+      setPhotoPreviews([]);
     }
+  };
+
+  const handleClearPhotos = () => {
+    setPhotoPreviews([]);
+    // Reset file input value
+    const fileInput = document.getElementById("photos") as HTMLInputElement;
+    if (fileInput) fileInput.value = "";
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -150,35 +159,45 @@ export default function ProductForm() {
     const form = e.currentTarget;
     const formData = new FormData(form);
     formData.set("sub_category_id", selectedSubId);
-    const result = await addProduct(formData);
 
-    if (result.success) {
-      form.reset();
-      setPhotoPreview(null);
-      setSelectedMainId("");
-      setSelectedSubId("");
-    } else {
-      setErrorMsg(result.error || "Erreur.");
+    try {
+      const result = await addProduct(formData);
+
+      if (result.success) {
+        form.reset();
+        setPhotoPreviews([]);
+        setSelectedMainId("");
+        setSelectedSubId("");
+      } else {
+        setErrorMsg(result.error || "Erreur de création du produit.");
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMsg("Une erreur inattendue s'est produite.");
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4 max-h-[80vh] overflow-y-auto pr-1">
       {errorMsg && (
-        <div className="bg-rose-50 text-rose-600 p-3 text-sm border border-rose-200">
+        <div className="bg-rose-50 text-rose-600 p-3 text-sm border border-rose-200 font-medium">
           {errorMsg}
         </div>
       )}
 
+      {/* Product Name */}
       <div>
-        <label htmlFor="name" className="block text-sm font-medium text-stone-700 mb-1">Nom du produit</label>
+        <label htmlFor="name" className="block text-sm font-medium text-stone-700 mb-1">
+          Nom du produit
+        </label>
         <input
           type="text"
           id="name"
           name="name"
           required
-          className="w-full border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:border-[#8c7b65] focus:ring-1 focus:ring-[#8c7b65]"
+          className="w-full border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:border-[#8c7b65] focus:ring-1 focus:ring-[#8c7b65] bg-white text-[#2c302e]"
         />
       </div>
 
@@ -203,18 +222,82 @@ export default function ProductForm() {
         />
       )}
 
+      {/* Description */}
       <div>
-        <label htmlFor="description" className="block text-sm font-medium text-stone-700 mb-1">Description</label>
+        <label htmlFor="description" className="block text-sm font-medium text-stone-700 mb-1">
+          Description (courte)
+        </label>
         <textarea
           id="description"
           name="description"
-          rows={3}
-          className="w-full border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:border-[#8c7b65] focus:ring-1 focus:ring-[#8c7b65]"
+          rows={2}
+          required
+          placeholder="Résumé affiché sur la liste des produits..."
+          className="w-full border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:border-[#8c7b65] focus:ring-1 focus:ring-[#8c7b65] bg-white text-[#2c302e]"
         />
       </div>
 
+      {/* Detailed Description */}
       <div>
-        <label htmlFor="price" className="block text-sm font-medium text-stone-700 mb-1">Prix (DA)</label>
+        <label htmlFor="detailed_description" className="block text-sm font-medium text-stone-700 mb-1">
+          Description Détaillée
+        </label>
+        <textarea
+          id="detailed_description"
+          name="detailed_description"
+          rows={4}
+          placeholder="Détails complets affichés sur la page produit..."
+          className="w-full border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:border-[#8c7b65] focus:ring-1 focus:ring-[#8c7b65] bg-white text-[#2c302e]"
+        />
+      </div>
+
+      {/* Flower Type */}
+      <div>
+        <label htmlFor="flower_type" className="block text-sm font-medium text-stone-700 mb-1">
+          Type de Fleurs
+        </label>
+        <input
+          type="text"
+          id="flower_type"
+          name="flower_type"
+          placeholder="Ex: Roses Rouges, Pivoines, Eucalyptus"
+          className="w-full border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:border-[#8c7b65] focus:ring-1 focus:ring-[#8c7b65] bg-white text-[#2c302e]"
+        />
+      </div>
+
+      {/* Sizes / Dimensions */}
+      <div>
+        <label htmlFor="sizes" className="block text-sm font-medium text-stone-700 mb-1">
+          Dimensions / Options de Taille
+        </label>
+        <textarea
+          id="sizes"
+          name="sizes"
+          rows={2}
+          placeholder="Ex: Taille unique (40cm x 30cm) ou Petit / Moyen / Grand..."
+          className="w-full border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:border-[#8c7b65] focus:ring-1 focus:ring-[#8c7b65] bg-white text-[#2c302e]"
+        />
+      </div>
+
+      {/* Care Instructions */}
+      <div>
+        <label htmlFor="care_instructions" className="block text-sm font-medium text-stone-700 mb-1">
+          Conseils d&apos;Entretien
+        </label>
+        <textarea
+          id="care_instructions"
+          name="care_instructions"
+          rows={3}
+          placeholder="Comment prendre soin de ces fleurs..."
+          className="w-full border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:border-[#8c7b65] focus:ring-1 focus:ring-[#8c7b65] bg-white text-[#2c302e]"
+        />
+      </div>
+
+      {/* Price */}
+      <div>
+        <label htmlFor="price" className="block text-sm font-medium text-stone-700 mb-1">
+          Prix (DA)
+        </label>
         <input
           type="number"
           id="price"
@@ -222,35 +305,79 @@ export default function ProductForm() {
           min="0"
           step="0.01"
           required
-          className="w-full border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:border-[#8c7b65] focus:ring-1 focus:ring-[#8c7b65]"
+          className="w-full border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:border-[#8c7b65] focus:ring-1 focus:ring-[#8c7b65] bg-white text-[#2c302e]"
         />
       </div>
 
+      {/* Product Images (Multi-upload) */}
       <div>
-        <label className="block text-sm font-medium text-stone-700 mb-1">Image du produit</label>
-        <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-stone-300 cursor-pointer hover:bg-stone-50 transition-colors">
-          {photoPreview ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={photoPreview} alt="Preview" className="h-full object-contain py-1" />
-          ) : (
-            <div className="flex flex-col items-center justify-center pt-5 pb-6">
-              <Upload className="w-6 h-6 mb-2 text-stone-400" />
-              <p className="text-xs text-stone-500">Cliquez pour ajouter</p>
-            </div>
+        <div className="flex justify-between items-center mb-1">
+          <label className="block text-sm font-medium text-stone-700">Images du produit (Sélection multiple)</label>
+          {photoPreviews.length > 0 && (
+            <button
+              type="button"
+              onClick={handleClearPhotos}
+              className="text-xs text-rose-500 hover:underline flex items-center gap-1"
+            >
+              <X size={12} />
+              Effacer tout
+            </button>
           )}
-          <input type="file" name="photo" className="hidden" accept="image/*" onChange={handlePhotoChange} />
+        </div>
+        
+        <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-stone-300 cursor-pointer hover:bg-stone-50 transition-colors">
+          <div className="flex flex-col items-center justify-center pt-3 pb-3">
+            <Upload className="w-5 h-5 mb-1 text-stone-400" />
+            <p className="text-xs text-stone-500">Ajouter une ou plusieurs images</p>
+          </div>
+          <input
+            type="file"
+            id="photos"
+            name="photos"
+            multiple
+            className="hidden"
+            accept="image/*"
+            onChange={handlePhotoChange}
+          />
         </label>
+
+        {/* Thumbnail Preview Area */}
+        {photoPreviews.length > 0 && (
+          <div className="mt-3 grid grid-cols-4 gap-2 border border-stone-100 p-2 bg-stone-50/50">
+            {photoPreviews.map((url, idx) => (
+              <div key={idx} className="relative aspect-square border border-stone-200 bg-white group">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt={`Preview ${idx + 1}`} className="w-full h-full object-cover" />
+                {idx === 0 && (
+                  <span className="absolute bottom-0 inset-x-0 bg-[#2c302e]/80 text-white text-[9px] text-center font-semibold py-0.5 uppercase tracking-wider">
+                    Principale
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
+      {/* Shop Visibility */}
       <div className="flex items-center gap-2 pt-2">
-        <input type="checkbox" id="isVisible" name="isVisible" value="true" defaultChecked className="accent-[#8c7b65]" />
-        <label htmlFor="isVisible" className="text-sm text-stone-700">Visible en boutique</label>
+        <input
+          type="checkbox"
+          id="isVisible"
+          name="isVisible"
+          value="true"
+          defaultChecked
+          className="accent-[#8c7b65]"
+        />
+        <label htmlFor="isVisible" className="text-sm text-stone-700">
+          Visible en boutique
+        </label>
       </div>
 
       <button
         type="submit"
         disabled={isSubmitting}
-        className="w-full bg-[#2c302e] hover:bg-black text-white py-3 text-sm font-bold tracking-wider uppercase transition-colors flex justify-center items-center gap-2 mt-4"
+        className="w-full bg-[#2c302e] hover:bg-black text-white py-3 text-sm font-bold tracking-wider uppercase transition-colors flex justify-center items-center gap-2 mt-4 cursor-pointer"
       >
         {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : "Ajouter le produit"}
       </button>

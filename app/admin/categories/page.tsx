@@ -1,9 +1,16 @@
 import { getMainCategories } from "@/app/actions/category";
 import CategoryManager from "@/components/admin/CategoryManager";
+import { verifyPermission } from "@/app/actions/auth";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminCategoriesPage() {
+  const staff = await verifyPermission("can_manage_inventory");
+  if (!staff) {
+    redirect("/login");
+  }
+
   const categories = await getMainCategories();
 
   return (
