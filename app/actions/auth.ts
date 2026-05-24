@@ -57,14 +57,49 @@ export async function loginAction(email: string, password: string) {
       .single();
 
     if (staffError || !staff) {
-      // If no staff member record, sign out and deny access
-      const tempClient = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
-        { auth: { persistSession: false } }
-      );
-      await tempClient.auth.signOut();
-      return { success: false, error: "Accès refusé. Compte non autorisé." };
+      // SELF-HEALING: Check if this is the first user in the database
+      const { count } = await supabase
+        .from("staff_members")
+        .select("*", { count: "exact", head: true });
+
+      if (count === 0 && data.session) {
+        // Auto-create the main_admin record using the authenticated user's client to bypass RLS restriction
+        const userClient = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
+          {
+            global: {
+              headers: {
+                Authorization: `Bearer ${data.session.access_token}`,
+              },
+            },
+            auth: { persistSession: false },
+          }
+        );
+
+        const { error: insertError } = await userClient.from("staff_members").insert([{
+          id: data.user.id,
+          email: data.user.email,
+          role: "main_admin",
+          can_manage_inventory: true,
+          can_view_orders: true,
+          can_manage_yalidine: true,
+        }]);
+
+        if (insertError) {
+          console.error("Self-healing insert error:", insertError);
+          return { success: false, error: "Erreur d'initialisation du compte administrateur: " + insertError.message };
+        }
+      } else {
+        // If no staff member record, sign out and deny access
+        const tempClient = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
+          { auth: { persistSession: false } }
+        );
+        await tempClient.auth.signOut();
+        return { success: false, error: "Accès refusé. Compte non autorisé." };
+      }
     }
 
     const cookieStore = await cookies();
@@ -108,8 +143,74 @@ export async function signUpAction(email: string, password: string) {
       return { success: false, error: "Impossible de créer l'utilisateur." };
     }
 
-    // Try logging the user in to set cookies immediately
-    return await loginAction(email, password);
+    // Determine role: first staff member becomes main_admin, others get staff
+    const { count } = await supabase
+      .from("staff_members")
+      .select("*", { count: "exact", head: true });
+
+    const isFirstUser = (count ?? 0) === 0;
+    const role = isFirstUser ? "main_admin" : "staff";
+
+    // Create the staff_members record for this new user using authenticated client if session is active
+    const clientToUse = data.session
+      ? createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
+          {
+            global: {
+              headers: {
+                Authorization: `Bearer ${data.session.access_token}`,
+              },
+            },
+            auth: { persistSession: false },
+          }
+        )
+      : supabase;
+
+    const { error: staffInsertError } = await clientToUse
+      .from("staff_members")
+      .insert([
+        {
+          id: data.user.id,
+          email: data.user.email,
+          role,
+          can_manage_inventory: isFirstUser,
+          can_view_orders: isFirstUser,
+          can_manage_yalidine: isFirstUser,
+        },
+      ]);
+
+    if (staffInsertError) {
+      console.error("Staff insert error:", staffInsertError);
+      // Don't fail the whole signup – the auth user was created, staff record
+      // can be added manually later by main admin
+    }
+
+    // If Supabase returned a session (email confirmation disabled), log in directly
+    if (data.session) {
+      const cookieStore = await cookies();
+      cookieStore.set("sb-access-token", data.session.access_token, {
+        httpOnly: true,
+        secure: true,
+        path: "/",
+        sameSite: "lax",
+        maxAge: data.session.expires_in,
+      });
+      cookieStore.set("session_user_id", data.user.id, {
+        httpOnly: true,
+        secure: true,
+        path: "/",
+        sameSite: "lax",
+        maxAge: data.session.expires_in,
+      });
+      return { success: true };
+    }
+
+    // If email confirmation is required, don't try to log in yet
+    return {
+      success: true,
+      needsConfirmation: true,
+    };
   } catch (err) {
     console.error("Signup error:", err);
     return { success: false, error: "Une erreur inattendue s'est produite." };
@@ -226,13 +327,32 @@ export async function addStaffMember(email: string, password: string) {
       auth: { persistSession: false }
     });
 
-    const { error } = await tempClient.auth.signUp({
+    const { data: signUpData, error } = await tempClient.auth.signUp({
       email,
       password,
     });
 
     if (error) {
       return { success: false, error: error.message };
+    }
+
+    if (signUpData.user) {
+      const client = await getSupabaseServer();
+      const { error: staffInsertError } = await client
+        .from("staff_members")
+        .insert([{
+          id: signUpData.user.id,
+          email: signUpData.user.email,
+          role: "staff",
+          can_manage_inventory: false,
+          can_view_orders: true, // Default to true so they can see orders
+          can_manage_yalidine: false,
+        }]);
+
+      if (staffInsertError) {
+        console.error("Failed to insert staff member record:", staffInsertError);
+        return { success: false, error: "Compte créé mais impossible d'enregistrer les permissions." };
+      }
     }
 
     revalidatePath("/admin/team");

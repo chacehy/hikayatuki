@@ -227,7 +227,7 @@ export default function MaterialList({
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+            <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scrollbar">
               {Object.entries(groupedSubs).map(([parentName, subs]) => (
                 <div key={parentName}>
                   <h4 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-2 capitalize">

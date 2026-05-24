@@ -22,3 +22,22 @@ body {
   background-color: var(--color-background-soft);
   color: var(--color-text-dark);
 }
+
+/* Custom premium scrollbar utility */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #d6d3d1 transparent;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #d6d3d1;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #a8a29e;
+}

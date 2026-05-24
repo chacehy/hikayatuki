@@ -32,13 +32,19 @@ export default function LoginPage() {
       } else {
         const result = await signUpAction(email, password);
         if (result.success) {
-          setSuccessMsg(
-            "Compte créé avec succès! Si vous êtes le premier utilisateur, vous êtes l'Administrateur Principal. Sinon, demandez l'activation de vos permissions."
-          );
-          setTimeout(() => {
-            router.push("/admin");
-            router.refresh();
-          }, 3500);
+          if ((result as any).needsConfirmation) {
+            setSuccessMsg(
+              "Compte créé avec succès! Veuillez vérifier votre boîte email pour confirmer votre compte, puis revenez vous connecter."
+            );
+          } else {
+            setSuccessMsg(
+              "Compte créé avec succès! Redirection vers le tableau de bord..."
+            );
+            setTimeout(() => {
+              router.push("/admin");
+              router.refresh();
+            }, 2000);
+          }
         } else {
           setErrorMsg(result.error || "Erreur lors de la création du compte.");
         }

@@ -36,15 +36,15 @@ export default function ProductList({
   }
 
   return (
-    <div className="bg-white border border-stone-200 shadow-sm overflow-hidden">
+    <div className="bg-white border border-stone-200 shadow-sm overflow-x-auto">
       <table className="w-full text-left border-collapse">
         <thead>
           <tr className="bg-stone-50 border-b border-stone-200 text-sm uppercase tracking-wider text-stone-500">
-            <th className="px-6 py-4 font-medium">Produit</th>
-            <th className="px-6 py-4 font-medium">Catégorie</th>
-            <th className="px-6 py-4 font-medium">Prix</th>
-            <th className="px-6 py-4 font-medium">Statut</th>
-            <th className="px-6 py-4 font-medium text-right">Actions</th>
+            <th className="px-4 py-4 font-medium">Produit</th>
+            <th className="px-4 py-4 font-medium">Catégorie</th>
+            <th className="px-4 py-4 font-medium">Prix</th>
+            <th className="px-4 py-4 font-medium">Statut</th>
+            <th className="px-4 py-4 font-medium text-right">Actions</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-stone-100">
@@ -53,7 +53,7 @@ export default function ProductList({
               key={product.id}
               className="hover:bg-stone-50/50 transition-colors"
             >
-              <td className="px-6 py-4">
+              <td className="px-4 py-4">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 relative bg-stone-100 border border-stone-200 flex-shrink-0">
                     {product.image_url && (
@@ -73,7 +73,7 @@ export default function ProductList({
                   </div>
                 </div>
               </td>
-              <td className="px-6 py-4">
+              <td className="px-4 py-4">
                 {product.sub_category ? (
                   <div>
                     <p className="text-xs text-stone-400 capitalize">
@@ -89,10 +89,10 @@ export default function ProductList({
                   </span>
                 )}
               </td>
-              <td className="px-6 py-4 font-mono font-medium text-stone-700">
+              <td className="px-4 py-4 font-mono font-medium text-stone-700">
                 {product.price.toFixed(2)} DA
               </td>
-              <td className="px-6 py-4">
+              <td className="px-4 py-4">
                 <span
                   className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-none text-xs font-medium ${
                     product.is_visible
@@ -103,7 +103,7 @@ export default function ProductList({
                   {product.is_visible ? "Visible" : "Masqué"}
                 </span>
               </td>
-              <td className="px-6 py-4 text-right">
+              <td className="px-4 py-4 text-right">
                 <div className="flex items-center justify-end gap-2">
                   <button
                     onClick={() =>

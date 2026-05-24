@@ -1,6 +1,8 @@
 "use server";
 
 import { supabase } from "@/lib/supabase";
+import { getSupabaseServer } from "@/lib/supabase-server";
+import { verifyPermission } from "@/app/actions/auth";
 import { revalidatePath } from "next/cache";
 import {
   fetchWilayas,
@@ -183,14 +185,38 @@ export async function getDeliveryFee(fromWilayaId: number, toWilayaId: number) {
   }
 }
 
+function getOrderTotal(order: any): number {
+  let total = 0;
+  if (order.items && Array.isArray(order.items)) {
+    for (const it of order.items) {
+      const match = (it.item || "").match(/\((\d+(?:\.\d+)?)\s*DA\)/i);
+      const qtyMatch = (it.item || "").match(/^(\d+)x/i);
+      const qty = qtyMatch ? parseInt(qtyMatch[1], 10) : 1;
+      if (match) {
+        total += parseFloat(match[1]) * qty;
+      }
+    }
+  }
+  if (order.selected_materials && Array.isArray(order.selected_materials)) {
+    for (const mat of order.selected_materials) {
+      if (mat.price && mat.quantity) {
+        total += Number(mat.price) * Number(mat.quantity);
+      }
+    }
+  }
+  return total;
+}
+
 // ══════════════════════════════════════════════════
 // PARCEL: Create & Track via Yalidine API
 // ══════════════════════════════════════════════════
 
 export async function createYalidineParcel(orderId: string) {
   try {
+    const client = await getSupabaseServer();
+
     // Fetch the order
-    const { data: order, error: orderError } = await supabase
+    const { data: order, error: orderError } = await client
       .from("orders")
       .select("*")
       .eq("id", orderId)
@@ -221,6 +247,8 @@ export async function createYalidineParcel(orderId: string) {
       if (matNames) productList += ` | ${matNames}`;
     }
 
+    const totalPrice = Math.round(getOrderTotal(order));
+
     const parcelData: YalidineParcelCreate = {
       order_id: orderId.substring(0, 30), // max 30 chars
       firstname,
@@ -230,9 +258,9 @@ export async function createYalidineParcel(orderId: string) {
       to_commune_name: order.commune || "",
       to_wilaya_name: order.wilaya || "",
       product_list: productList.substring(0, 255),
-      price: 0, // COD amount (0 if payment is separate)
-      do_insurance: false,
-      declared_value: 0,
+      price: totalPrice,
+      do_insurance: true,
+      declared_value: totalPrice,
       freeshipping: 0,
       is_stopdesk: order.delivery_type === "desk" ? 1 : 0,
       stop_desk_id: order.stop_desk_id || undefined,
@@ -244,13 +272,18 @@ export async function createYalidineParcel(orderId: string) {
     // Update order with tracking number
     const tracking = result.tracking || result.Tracking;
     if (tracking) {
-      await supabase
+      const { error: updateError } = await client
         .from("orders")
         .update({
           yalidine_tracking: tracking,
           yalidine_status: "En préparation",
         })
         .eq("id", orderId);
+
+      if (updateError) {
+        console.error("Failed to update order tracking:", updateError);
+        return { success: false, error: "Statut mis à jour mais impossible d'enregistrer le suivi dans la base de données." };
+      }
     }
 
     revalidatePath("/admin");
@@ -259,6 +292,23 @@ export async function createYalidineParcel(orderId: string) {
   } catch (err: any) {
     console.error("Create Yalidine parcel error:", err);
     return { success: false, error: err.message || "Erreur Yalidine." };
+  }
+}
+
+export async function createYalidineParcelAction(formData: FormData) {
+  const staff = await verifyPermission("can_manage_yalidine");
+  if (!staff) {
+    throw new Error("Non autorisé. Permission de gestion de Yalidine requise.");
+  }
+
+  const orderId = formData.get("orderId") as string;
+  if (!orderId) {
+    throw new Error("ID de commande manquant.");
+  }
+
+  const result = await createYalidineParcel(orderId);
+  if (!result.success) {
+    throw new Error(result.error || "Erreur lors de la création du colis.");
   }
 }
 

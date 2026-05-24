@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { confirmOrder, cancelOrder } from "@/app/actions/order";
-import { createYalidineParcel } from "@/app/actions/yalidine";
+import { createYalidineParcelAction } from "@/app/actions/yalidine";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { ArrowLeft, Truck, Package, MapPin } from "lucide-react";
@@ -214,11 +214,8 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                   <p className="text-xs text-[#8c7b65] mb-4">
                     Créer un colis Yalidine pour cette commande. Le numéro de suivi sera généré automatiquement.
                   </p>
-                  <form action={async () => {
-                    "use server";
-                    await createYalidineParcel(order.id);
-                    revalidatePath(`/admin/orders/${order.id}`);
-                  }}>
+                  <form action={createYalidineParcelAction}>
+                    <input type="hidden" name="orderId" value={order.id} />
                     <button 
                       type="submit"
                       className="w-full bg-[#8c7b65] text-white hover:bg-[#6e5f4d] font-bold py-3 transition-colors tracking-widest uppercase text-sm border-none rounded-none flex items-center justify-center gap-2"

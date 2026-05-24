@@ -180,7 +180,7 @@ export default function ProductForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-h-[80vh] overflow-y-auto pr-1">
+    <form onSubmit={handleSubmit} className="space-y-4 max-h-[80vh] overflow-y-auto pr-2 custom-scrollbar">
       {errorMsg && (
         <div className="bg-rose-50 text-rose-600 p-3 text-sm border border-rose-200 font-medium">
           {errorMsg}
