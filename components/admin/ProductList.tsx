@@ -189,7 +189,6 @@ export default function ProductList({
           ))}
         </tbody>
       </table>
-    </div>
 
       {/* Tag Edit Modal */}
       {isModalOpen && selectedProduct && (
