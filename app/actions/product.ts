@@ -245,3 +245,36 @@ export async function toggleProductVisibility(id: string, isVisible: boolean) {
   revalidatePath("/");
   return { success: true };
 }
+
+/**
+ * Admin action: Updates the custom tag label and background color of a product.
+ */
+export async function updateProductTag(
+  id: string,
+  tagLabel: string | null,
+  tagBgColor: string | null
+) {
+  const staff = await verifyPermission("can_manage_inventory");
+  if (!staff) {
+    return { success: false, error: "Non autorisé. Droits d'inventaire requis." };
+  }
+
+  const client = await getSupabaseServer();
+  const { error } = await client
+    .from("products")
+    .update({
+      tag_label: tagLabel || null,
+      tag_bg_color: tagBgColor || null,
+    })
+    .eq("id", id);
+
+  if (error) {
+    console.error("Update product tag error:", error);
+    return { success: false, error: "Erreur lors de la mise à jour du tag." };
+  }
+
+  revalidatePath("/admin/products");
+  revalidatePath("/shop");
+  revalidatePath("/");
+  return { success: true };
+}

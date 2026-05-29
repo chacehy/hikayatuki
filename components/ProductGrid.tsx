@@ -8,6 +8,16 @@ import { ShoppingBag, Loader2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
+function getContrastColor(hexColor: string): string {
+  if (!hexColor || hexColor.length < 6) return "#ffffff";
+  const hex = hexColor.replace("#", "");
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+  return yiq >= 128 ? "#1c1917" : "#ffffff";
+}
+
 interface ProductGridProps {
   categories?: MainCategory[];
   limit?: number;
@@ -178,6 +188,22 @@ export default function ProductGrid({ categories, limit }: ProductGridProps) {
                     </div>
                   )}
                 </Link>
+
+                {/* Custom Badge Overlay */}
+                {product.tag_label && (
+                  <div className="absolute top-4 left-4 z-20">
+                    <span
+                      className="px-2.5 py-1 text-xs font-bold uppercase tracking-wider border shadow-sm select-none"
+                      style={{
+                        backgroundColor: product.tag_bg_color || "#8c7b65",
+                        borderColor: `${product.tag_bg_color || "#8c7b65"}dd`,
+                        color: getContrastColor(product.tag_bg_color || "#8c7b65"),
+                      }}
+                    >
+                      {product.tag_label}
+                    </span>
+                  </div>
+                )}
 
                 {/* Quick Add Button Overlay */}
                 <div className="absolute inset-x-0 bottom-0 p-4 opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 z-10">

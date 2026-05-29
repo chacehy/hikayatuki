@@ -93,16 +93,17 @@ export default function MaterialList({
   return (
     <>
       <div className="bg-white border border-stone-200 shadow-sm overflow-hidden">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-stone-50 border-b border-stone-200 text-sm uppercase tracking-wider text-stone-500">
-              <th className="px-6 py-4 font-medium">Matière</th>
-              <th className="px-6 py-4 font-medium">Prix</th>
-              <th className="px-6 py-4 font-medium">Statut</th>
-              <th className="px-6 py-4 font-medium text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-stone-100">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-stone-50 border-b border-stone-200 text-sm uppercase tracking-wider text-stone-500">
+                <th className="px-6 py-4 font-medium">Matière</th>
+                <th className="px-6 py-4 font-medium">Prix</th>
+                <th className="px-6 py-4 font-medium">Statut</th>
+                <th className="px-6 py-4 font-medium text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-stone-100">
             {initialMaterials.map((material: any) => {
               const linkCount = (material.sub_category_materials || []).length;
               return (
@@ -204,6 +205,7 @@ export default function MaterialList({
             })}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Linking Modal */}

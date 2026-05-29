@@ -110,7 +110,7 @@ function CustomSelect({
   );
 }
 
-export default function ProductForm() {
+export default function ProductForm({ onSuccess }: { onSuccess?: () => void }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
@@ -168,6 +168,7 @@ export default function ProductForm() {
         setPhotoPreviews([]);
         setSelectedMainId("");
         setSelectedSubId("");
+        if (onSuccess) onSuccess();
       } else {
         setErrorMsg(result.error || "Erreur de création du produit.");
       }

@@ -5,6 +5,16 @@ import ProductGallery from "@/components/ProductGallery";
 import AddToCartButton from "@/components/AddToCartButton";
 import { ShieldCheck, Sparkles, HeartHandshake, Leaf } from "lucide-react";
 
+function getContrastColor(hexColor: string): string {
+  if (!hexColor || hexColor.length < 6) return "#ffffff";
+  const hex = hexColor.replace("#", "");
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+  return yiq >= 128 ? "#1c1917" : "#ffffff";
+}
+
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -96,6 +106,18 @@ export default async function ProductDetailPage({
                 {subCategory?.is_composable && (
                   <span className="bg-amber-100 text-amber-800 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 border border-amber-200">
                     ✦ Composable
+                  </span>
+                )}
+                {product.tag_label && (
+                  <span
+                    className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 border select-none shadow-xs"
+                    style={{
+                      backgroundColor: product.tag_bg_color || "#8c7b65",
+                      borderColor: `${product.tag_bg_color || "#8c7b65"}dd`,
+                      color: getContrastColor(product.tag_bg_color || "#8c7b65"),
+                    }}
+                  >
+                    {product.tag_label}
                   </span>
                 )}
               </div>

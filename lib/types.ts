@@ -55,6 +55,8 @@ export interface Product {
   care_instructions?: string;
   flower_type?: string;
   sizes?: string;
+  tag_label?: string | null;
+  tag_bg_color?: string | null;
 }
 
 export interface ProductImage {
